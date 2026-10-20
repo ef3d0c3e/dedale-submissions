@@ -10,6 +10,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -267,6 +268,40 @@ def check_game(game: object) -> None:
     for player in game["players"]:
         if not isinstance(player.get("startup"), str) or not isinstance(player.get("failures"), int):
             raise ValueError(f"game {game['id']}: malformed player")
+
+
+class GameError(Exception):
+    """Dedale could not play a game (not a bot's failure: those are results)."""
+
+
+def play(
+    dedale: str,
+    season: Season,
+    bots: list[Bot],
+    seed: str,
+    swapped: bool = False,
+    sandbox: bool = False,
+    max_turns: int | None = None,
+) -> dict:
+    """Plays one game with `dedale run` and returns its replay. Player 0 is
+    `bots[0]`, starting bottom-right when `swapped`."""
+    with tempfile.TemporaryDirectory(prefix="dedale-game-") as tmp:
+        command = [dedale, "run", *(str(b.path) for b in bots), *season.maze_args(seed)]
+        command += ["--out", tmp, "--color", "never"]
+        command += ["--swap"] if swapped else []
+        command += ["--sandbox"] if sandbox else []
+        command += ["--max-turns", str(max_turns)] if max_turns else []
+        done = subprocess.run(command, capture_output=True, text=True)
+        replay = Path(tmp) / "replay.json"
+        if done.returncode != 0 or not replay.exists():
+            reason = done.stderr.strip() or f"dedale run exited with {done.returncode}"
+            raise GameError(reason)
+        return json.loads(replay.read_text())
+
+
+def failures(outcomes: dict) -> int:
+    """Turns that were not `ok`, from a replay's outcome counts."""
+    return sum(n for outcome, n in outcomes.items() if outcome != "ok")
 
 
 def head_commit(root: Path = ROOT) -> str:
