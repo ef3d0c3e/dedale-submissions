@@ -26,6 +26,12 @@ def dedale() -> str | None:
     return os.environ.get("DEDALE") or shutil.which("dedale")
 
 
+def chromium() -> str | None:
+    """A browser for the site's script: `CHROMIUM`, or one on the PATH."""
+    names = ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable")
+    return os.environ.get("CHROMIUM") or next(filter(None, map(shutil.which, names)), None)
+
+
 def write_bot(
     root: Path, bot_id: str, name: str = "", version: int = 1, move: str = "stay", source: str = ""
 ) -> Path:

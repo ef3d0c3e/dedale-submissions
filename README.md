@@ -100,14 +100,22 @@ result. Replays and logs are not kept.
 ## Ranking
 
 **Head to head.** A pairing's score is a bot's share of all the points
-collected over its 20 games: 0.5 is even. The ranking uses the **Schulze
-method** on those shares: a bot ranks above another when it beats it,
-directly or through a chain of bots each beating the next, by a wider
-margin than the other manages back. A bot that beats every other is first;
-a cycle (A beats B beats C beats A) is settled by how strongly each one
-wins; and entering weak or copied bots lifts nobody. Ties go to the higher
-average share. Only each bot's latest version is ranked; a bot with games
-still to play is marked provisional.
+collected over its 20 games: 0.5 is even. The board is sorted by
+**points**: a bot's pairing scores averaged over its opponents, in percent
+(50 is even); ties go to the higher win rate. Click a column on the site
+to sort by it instead:
+
+- **Win rate**: games won, draws counting half.
+- **Pairings** won, drawn and lost.
+- **Schulze**: the rank by the Schulze method. A bot ranks above another
+  when it beats it, directly or through a chain of bots each beating the
+  next, by a wider margin than the other manages back. A bot that beats
+  every other is first, and unlike points, entering weak or copied bots
+  lifts nobody.
+- **Games with failures**: late, illegal or missing moves, crashes.
+
+Only each bot's latest version is ranked; a bot with games still to play is
+marked provisional.
 
 **Solo.** A separate board ranks how fast each bot clears its mazes alone,
 as its turns divided by the greedy baseline's on the same mazes (lower is

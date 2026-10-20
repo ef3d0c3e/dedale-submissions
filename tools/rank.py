@@ -1,5 +1,6 @@
-"""The standings: the duo board (the Schulze method on each pairing's share
-of points) and the solo board (turns to clear, relative to the greedy
+"""The standings: the duo board (points: each bot's average share of the
+points against its opponents; win rate, pairings and the Schulze rank as
+other orders) and the solo board (turns to clear, relative to the greedy
 baseline on the same mazes).
 
     python3 -m tools.rank --games FILE --bots FILE --out FILE
@@ -27,6 +28,9 @@ class Pairing:
     games: list[dict] = field(default_factory=list)
     mine: int = 0
     theirs: int = 0
+    won: int = 0
+    drawn: int = 0
+    lost: int = 0
 
     def share(self) -> Fraction:
         """The first bot's share of the points; even when nobody scored."""
@@ -52,6 +56,9 @@ def pairings(season: Season, keys: dict[str, str], games: list[dict]) -> dict[tu
             pairing.games.append(game)
             pairing.mine += mine
             pairing.theirs += theirs
+            pairing.won += mine > theirs
+            pairing.drawn += mine == theirs
+            pairing.lost += mine < theirs
     expected = 2 * season.mazes_per_pairing
     return {pair: p for pair, p in found.items() if len(p.games) == expected}
 
@@ -78,36 +85,57 @@ def schulze(ids: list[str], share: dict[tuple[str, str], Fraction]) -> dict[str,
 
 
 def duo_board(season: Season, bots: list[dict], games: list[dict]) -> tuple[list[dict], dict]:
+    """The bots by points (their average share against each opponent), then
+    win rate, then id; with the other orders' values."""
     keys = {bot["id"]: f"{bot['id']}@{bot['version']}" for bot in bots}
     ids = sorted(keys)
     found = pairings(season, keys, games)
     share = {pair: p.share() for pair, p in found.items()}
+    mine = {i: [p for (a, _), p in found.items() if a == i] for i in ids}
+
+    def points(bot_id: str) -> Fraction | None:
+        shares = [p.share() for p in mine[bot_id]]
+        return sum(shares, Fraction(0)) / len(shares) if shares else None
+
+    def win_rate(bot_id: str) -> Fraction | None:
+        """Games won, draws counting half."""
+        played = sum(len(p.games) for p in mine[bot_id])
+        won = sum(2 * p.won + p.drawn for p in mine[bot_id])
+        return Fraction(won, 2 * played) if played else None
+
+    def best_first(value: Fraction | None) -> tuple[bool, Fraction]:
+        return value is None, -(value or 0)
+
     above = schulze(ids, share)
-
-    def average(bot_id: str) -> Fraction:
-        mine = [s for (a, _), s in share.items() if a == bot_id]
-        return sum(mine, Fraction(0)) / len(mine) if mine else HALF
-
-    order = sorted(ids, key=lambda i: (-above[i], -average(i), i))
+    by_schulze = sorted(ids, key=lambda i: (-above[i], -(points(i) or HALF), i))
+    order = sorted(ids, key=lambda i: (best_first(points(i)), best_first(win_rate(i)), i))
     current = set(keys.values())
     board = []
     for rank, bot_id in enumerate(order, 1):
-        mine = {b: s for (a, b), s in share.items() if a == bot_id}
+        shares = [p.share() for p in mine[bot_id]]
         played = [
             g for g in games if keys[bot_id] in g["spec"]["bots"] and set(g["spec"]["bots"]) <= current
         ]
         seat = lambda g: g["spec"]["bots"].index(keys[bot_id])  # noqa: E731
+        exact = {"share": points(bot_id), "win_rate": win_rate(bot_id)}
         board.append(
             {
                 "rank": rank,
                 "id": bot_id,
-                "above": above[bot_id],
-                "won": sum(s > HALF for s in mine.values()),
-                "drawn": sum(s == HALF for s in mine.values()),
-                "lost": sum(s < HALF for s in mine.values()),
-                "share": round(float(average(bot_id)), 4),
+                **{name: None if v is None else round(float(v), 4) for name, v in exact.items()},
+                "games": {
+                    "won": sum(p.won for p in mine[bot_id]),
+                    "drawn": sum(p.drawn for p in mine[bot_id]),
+                    "lost": sum(p.lost for p in mine[bot_id]),
+                },
+                "pairings": {
+                    "won": sum(s > HALF for s in shares),
+                    "drawn": sum(s == HALF for s in shares),
+                    "lost": sum(s < HALF for s in shares),
+                },
+                "schulze": by_schulze.index(bot_id) + 1,
                 "failures": sum(g["players"][seat(g)]["failures"] > 0 for g in played),
-                "provisional": len(mine) < len(ids) - 1,
+                "provisional": len(shares) < len(ids) - 1,
             }
         )
     head = {

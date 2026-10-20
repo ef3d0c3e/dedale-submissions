@@ -24,17 +24,57 @@ def pairing(a: str, b: str, mine: int, theirs: int, va: int = 1, vb: int = 1) ->
 
 
 def order(result: dict) -> list[str]:
+    """The duo board's order: by points."""
     return [row["id"] for row in result["duo"]]
 
 
+def schulze_order(result: dict) -> list[str]:
+    return [row["id"] for row in sorted(result["duo"], key=lambda row: row["schulze"])]
+
+
 class DuoTests(unittest.TestCase):
+    def test_points_are_the_average_share(self):
+        bots = [info(i) for i in ("a/x", "b/y", "c/z")]
+        games = pairing("a/x", "b/y", 6, 4) + pairing("a/x", "c/z", 5, 5) + pairing("b/y", "c/z", 8, 2)
+        result = standings(SEASON, bots, games, "abc")
+        self.assertEqual(order(result), ["b/y", "a/x", "c/z"])
+        rows = {row["id"]: row for row in result["duo"]}
+        # y: 40% against x, 80% against z.
+        self.assertEqual(rows["b/y"]["share"], 0.6)
+        self.assertEqual(rows["a/x"]["share"], 0.55)
+        self.assertEqual([rows[i]["rank"] for i in ("b/y", "a/x", "c/z")], [1, 2, 3])
+
+    def test_win_rate_and_games(self):
+        bots = [info(i) for i in ("a/x", "b/y", "c/z")]
+        games = pairing("a/x", "b/y", 6, 4) + pairing("a/x", "c/z", 5, 5) + pairing("b/y", "c/z", 8, 2)
+        rows = {row["id"]: row for row in standings(SEASON, bots, games, "abc")["duo"]}
+        # x: won both games against y, drew both against z.
+        self.assertEqual(rows["a/x"]["games"], {"won": 2, "drawn": 2, "lost": 0})
+        self.assertEqual(rows["a/x"]["win_rate"], 0.75)
+        self.assertEqual(rows["a/x"]["pairings"], {"won": 1, "drawn": 1, "lost": 0})
+        self.assertEqual(rows["c/z"]["win_rate"], 0.25)
+
+    def test_equal_points_go_to_the_win_rate(self):
+        # x and y both average 52.5%: y beat z narrowly twice, x crushed z
+        # once and lost the other game.
+        bots = [info(i) for i in ("a/x", "b/y", "c/z")]
+        x_z = pairing("a/x", "c/z", 15, 5)
+        x_z[1]["result"]["half_points"] = [7, 13]
+        games = pairing("a/x", "b/y", 5, 5) + x_z + pairing("b/y", "c/z", 11, 9)
+        result = standings(SEASON, bots, games, "abc")
+        rows = {row["id"]: row for row in result["duo"]}
+        self.assertEqual(rows["a/x"]["share"], rows["b/y"]["share"])
+        self.assertEqual((rows["a/x"]["win_rate"], rows["b/y"]["win_rate"]), (0.5, 0.75))
+        self.assertEqual(order(result), ["b/y", "a/x", "c/z"])
+
     def test_a_bot_that_beats_all_is_first(self):
         bots = [info(i) for i in ("a/x", "b/y", "c/z")]
         games = pairing("c/z", "a/x", 11, 9) + pairing("c/z", "b/y", 6, 4) + pairing("a/x", "b/y", 7, 3)
         result = standings(SEASON, bots, games, "abc")
-        self.assertEqual(order(result), ["c/z", "a/x", "b/y"])
-        first = result["duo"][0]
-        self.assertEqual((first["won"], first["drawn"], first["lost"]), (2, 0, 0))
+        self.assertEqual(schulze_order(result), ["c/z", "a/x", "b/y"])
+        first = next(row for row in result["duo"] if row["id"] == "c/z")
+        self.assertEqual(first["pairings"], {"won": 2, "drawn": 0, "lost": 0})
+        self.assertEqual(first["schulze"], 1)
         self.assertFalse(first["provisional"])
 
     def test_a_cycle_is_settled_by_the_strength_of_the_wins(self):
@@ -42,25 +82,24 @@ class DuoTests(unittest.TestCase):
         # gives way, so x is first.
         bots = [info(i) for i in ("a/x", "b/y", "c/z")]
         games = pairing("a/x", "b/y", 6, 4) + pairing("b/y", "c/z", 7, 3) + pairing("c/z", "a/x", 11, 9)
-        self.assertEqual(order(standings(SEASON, bots, games, "abc")), ["a/x", "b/y", "c/z"])
+        self.assertEqual(schulze_order(standings(SEASON, bots, games, "abc")), ["a/x", "b/y", "c/z"])
 
-    def test_a_weak_bot_lifts_nobody(self):
-        # x beats y, but y crushes w harder than x does: an average of shares
-        # would put y first; head to head, x stays first.
+    def test_a_weak_bot_lifts_nobody_by_schulze(self):
+        # x beats y, but y crushes w harder than x does: points put y first;
+        # the Schulze rank, head to head, keeps x first.
         bots = [info(i) for i in ("a/x", "b/y", "c/w")]
         games = pairing("a/x", "b/y", 6, 4) + pairing("a/x", "c/w", 7, 3) + pairing("b/y", "c/w", 99, 1)
         result = standings(SEASON, bots, games, "abc")
-        self.assertEqual(order(result), ["a/x", "b/y", "c/w"])
-        shares = {row["id"]: row["share"] for row in result["duo"]}
-        self.assertGreater(shares["b/y"], shares["a/x"])
+        self.assertEqual(schulze_order(result), ["a/x", "b/y", "c/w"])
+        self.assertEqual(order(result), ["b/y", "a/x", "c/w"])
 
     def test_copies_lift_nobody(self):
         bots = [info(i) for i in ("a/x", "b/y", "c/z")]
         games = pairing("a/x", "b/y", 6, 4) + pairing("b/y", "c/z", 6, 4) + pairing("a/x", "c/z", 6, 4)
-        before = order(standings(SEASON, bots, games, "abc"))
+        before = schulze_order(standings(SEASON, bots, games, "abc"))
         # z's copy: the same results against everyone, even against z.
         copy = pairing("a/x", "d/z2", 6, 4) + pairing("b/y", "d/z2", 6, 4) + pairing("c/z", "d/z2", 5, 5)
-        after = order(standings(SEASON, bots + [info("d/z2")], games + copy, "abc"))
+        after = schulze_order(standings(SEASON, bots + [info("d/z2")], games + copy, "abc"))
         self.assertEqual([i for i in after if i != "d/z2"], before)
 
     def test_even_pairings_and_missing_ones(self):
@@ -68,7 +107,7 @@ class DuoTests(unittest.TestCase):
         games = pairing("a/x", "b/y", 5, 5) + pairing("a/x", "c/z", 6, 4)
         result = standings(SEASON, bots, games, "abc")
         rows = {row["id"]: row for row in result["duo"]}
-        self.assertEqual(rows["a/x"]["drawn"], 1)
+        self.assertEqual(rows["a/x"]["pairings"]["drawn"], 1)
         self.assertTrue(rows["b/y"]["provisional"], "b and c never played")
         self.assertFalse(rows["a/x"]["provisional"])
         head = result["head_to_head"]
@@ -80,6 +119,7 @@ class DuoTests(unittest.TestCase):
         bots = [info(i) for i in ("a/x", "b/y")]
         result = standings(SEASON, bots, pairing("a/x", "b/y", 9, 1)[:1], "abc")
         self.assertTrue(all(row["provisional"] for row in result["duo"]))
+        self.assertTrue(all(row["share"] is None and row["win_rate"] is None for row in result["duo"]))
 
     def test_only_current_versions(self):
         bots = [info("a/x"), info("b/y", 2)]
