@@ -1,0 +1,185 @@
+# After each push to master (a merged submission), plays the games the
+# results lack, then ranks and publishes the site. Only the schedule job holds
+# the maze secret (bots are read there through Dedale's sandbox, which clears
+# the environment); the jobs that play run the bots, in the sandbox, with a
+# read-only token and no secrets; only the deploy job can write (the results
+# release, Pages), and it runs no bot. Third-party actions are pinned by
+# commit.
+name: Tournament
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One tournament at a time, each finishing what it started.
+concurrency:
+  group: tournament
+  cancel-in-progress: false
+
+env:
+  SHARDS: 8
+
+jobs:
+  schedule:
+    name: Schedule
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      shards: ${{ steps.schedule.outputs.shards }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dedale
+        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+
+      - name: Sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          # Ubuntu 24.04 keeps unprivileged programs such as bubblewrap from
+          # creating user namespaces; the sandbox needs them.
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: The results so far
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p work
+          gh release download results --pattern games.json.gz --dir work --repo "$GITHUB_REPOSITORY" \
+              || echo "No results yet: every game is to play."
+
+      - name: Schedule
+        id: schedule
+        env:
+          MAZE_SECRET: ${{ secrets.MAZE_SECRET }}
+        run: |
+          if [ -z "$MAZE_SECRET" ]; then
+            echo "::error::the MAZE_SECRET repository secret is not set"
+            exit 1
+          fi
+          python3 -m tools.arena schedule --dedale "$DEDALE" --sandbox \
+              --games work/games.json.gz --out work --shards "$SHARDS"
+          shards=$(python3 -c 'import json; s = json.load(open("work/schedule.json"))["shards"]; print(json.dumps([i for i, g in enumerate(s) if g]))')
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: schedule
+          path: work/
+          if-no-files-found: error
+
+  play:
+    name: Play shard ${{ matrix.shard }}
+    needs: schedule
+    if: needs.schedule.outputs.shards != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.schedule.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dedale
+        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+
+      - name: Sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: schedule
+          path: work
+
+      - name: Play
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          python3 -m tools.arena play --schedule work/schedule.json --shard "$SHARD" \
+              --dedale "$DEDALE" --sandbox --out "shards/shard-$SHARD.json"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: shard-${{ matrix.shard }}
+          path: shards/
+          if-no-files-found: error
+
+  deploy:
+    name: Rank and publish
+    needs: [schedule, play]
+    # Even when a shard failed: the others' games are kept, its own are
+    # scheduled again next time.
+    if: ${{ !cancelled() && needs.schedule.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: schedule
+          path: work
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: shard-*
+          merge-multiple: true
+          path: shards
+
+      # Data only: every game is checked before it joins the results. Games
+      # Dedale could not play are reported and scheduled again next time.
+      - name: Merge
+        run: |
+          shopt -s nullglob
+          python3 -m tools.arena merge --games work/games.json.gz --out games.json.gz shards/*.json \
+              || echo "::warning::some games could not be played; they will be scheduled again"
+
+      - name: Save the results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view results --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload results games.json.gz --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create results games.json.gz --repo "$GITHUB_REPOSITORY" --latest=false \
+                --title "Results" --notes "Every game played, replaced after each tournament."
+          fi
+
+      - name: Rank and build the site
+        run: |
+          python3 -m tools.rank --games games.json.gz --bots work/bots.json --out standings.json
+          python3 -m tools.site --standings standings.json --games games.json.gz --out site
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
