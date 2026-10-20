@@ -1,0 +1,152 @@
+# Dedale competition
+
+Bots for [Dedale](https://github.com/ef3d0c3e/dedale), the maze referee,
+compete here. Submit a bot with a pull request; once it is merged it plays
+every other bot, and the ranking is published at
+<https://ef3d0c3e.github.io/dedale-submissions/>.
+
+- [How it works](#how-it-works)
+- [Submitting a bot](#submitting-a-bot)
+- [Games](#games)
+- [Ranking](#ranking)
+- [Baselines](#baselines)
+- [Reproducing a game](#reproducing-a-game)
+- [For maintainers](#for-maintainers)
+
+## How it works
+
+1. You add your bot under `bots/<your GitHub login>/<bot>/` in a fork and
+   open a pull request.
+2. A check reads what your bot says about itself, makes sure the pull
+   request only touches your own folder, and plays a few games with it in
+   Dedale's sandbox. Its report is in the check's summary.
+3. Once a maintainer merges it, your bot plays every other bot, alone too,
+   and the site is updated with the new ranking.
+
+## Submitting a bot
+
+New to Dedale? Its guide, [Writing a bot](https://github.com/ef3d0c3e/dedale/blob/master/docs/writing-a-bot.md),
+goes from an empty file to a competitive bot.
+
+**Layout.** A bot is a folder: `bots/<login>/<bot>/main.py`, where `<login>`
+is your GitHub login and `<bot>` a name of your choice (lower-case letters,
+digits, `-` and `_`, up to 40 characters). Next to `main.py` you may add
+helper modules and data files; load them relative to the bot's file:
+
+```python
+from pathlib import Path
+
+TABLE = (Path(__file__).parent / "table.bin").read_bytes()
+```
+
+A bot's folder holds at most 10 MiB, and no symbolic links. You may enter
+several bots.
+
+**Who it is.** These globals are required, as plain literals at the top of
+`main.py` (Dedale reads them without running your code):
+
+```python
+NAME = "Racer"          # what it is called, unique in the pool
+AUTHOR = "Ada"          # who wrote it
+DESCRIPTION = "Goes for the nearest point it reaches before the opponent."
+VERSION = 1             # raise it whenever the bot changes
+```
+
+**Updating.** Change your files in place and raise `VERSION`: the check
+refuses changed files with the same version. A new version plays all its
+games again; the old version's games stay in the history.
+
+**Rules.** Bots are Python, standard library only, and run in Dedale's
+sandbox: no network, an empty environment, a read-only view of the system
+and of their own folder, a private `/tmp` of 64 MiB, 2048 MiB of memory per
+process, 64 processes and threads, one CPU. Each bot gets the season's
+startup budget for importing it and running `init()`, then a time limit
+per move ([`season.json`](season.json)); a late move is lost and the bot
+stays.
+
+**Before opening the pull request**, check your bot with
+[Dedale's latest release](https://github.com/ef3d0c3e/dedale/releases):
+
+```sh
+dedale about bots/ada/racer/main.py                 # what Dedale reads
+dedale run bots/ada/racer/main.py bots/_baseline/greedy/main.py --sandbox
+python3 -m tools.validate --author ada              # the pull request's check
+```
+
+## Games
+
+Each pair of bots plays 4 mazes from both corners: 8 games. Each bot also
+clears 4 mazes alone. The maze size, number of points, share of loops and
+timings are the season's ([`season.json`](season.json)): Dedale's defaults,
+31×31 with 50 points and 80% loops, 2 s to start and 100 ms per move.
+
+Mazes are **fresh for each pairing**: their seeds come from a secret and the
+two bots' versions, so nobody can know or tune for them before they are
+played. Each game's maze code is published with its result, so any game can
+be played again without the secret.
+
+Every game is recorded in `games.json.gz`, published on the site: who
+played (`<login>/<bot>@<version>`), the maze code, the corner, the timings,
+the repository commit and Dedale version it was played at, the date and the
+result. Replays and logs are not kept.
+
+## Ranking
+
+**Head to head.** A pairing's score is a bot's share of all the points
+collected over its 8 games: 0.5 is even. The ranking uses the **Schulze
+method** on those shares: a bot ranks above another when it beats it,
+directly or through a chain of bots each beating the next, by a wider
+margin than the other manages back. A bot that beats every other is first;
+a cycle (A beats B beats C beats A) is settled by how strongly each one
+wins; and entering weak or copied bots lifts nobody. Ties go to the higher
+average share. Only each bot's latest version is ranked; a bot with games
+still to play is marked provisional.
+
+**Solo.** A separate board ranks how fast each bot clears its mazes alone,
+as its turns divided by the greedy baseline's on the same mazes (lower is
+better; a maze not cleared counts the turn limit).
+
+## Baselines
+
+`bots/_baseline/` holds Dedale's example bots: greedy, tour and rollout.
+They play every tournament like any bot, so a newcomer always has
+opponents and the ranking has fixed references. `_baseline` cannot be a
+GitHub login, so only maintainers change them.
+
+## Reproducing a game
+
+Each game on the site shows the command that plays it again, for instance:
+
+```sh
+git checkout <commit>
+dedale run bots/ada/racer/main.py bots/_baseline/greedy/main.py \
+    --maze ded2-31x31-l80-p50-1a2b3c4d5e6f7a8b --swap --startup-ms 2000 --move-ms 100
+```
+
+with the Dedale version the game was played with. Bots that depend on
+timing may play slightly differently.
+
+## For maintainers
+
+- **Tools** (`tools/`, standard library only, Python 3.10 or later, run as
+  `python3 -m tools.<name>` from the root): `fetch_dedale` (the season's
+  release, checked against its checksums), `validate` (the pull request
+  check), `arena` (schedule, play and merge games), `rank` (standings),
+  `site` (the static site). `scripts/check.sh` runs their tests (the
+  end-to-end ones need Dedale: `DEDALE` or `dedale` on the PATH).
+- **Workflows**: `pull-request.yml` (read-only token, no secrets: the
+  tools' tests and the submission check) and `tournament.yml` (on each push
+  to `master`: schedule, play in parallel jobs, then merge, rank and deploy;
+  only the schedule job holds the `MAZE_SECRET` secret, only the deploy job
+  can write).
+- **Settings**: a repository secret `MAZE_SECRET` (any long random string);
+  Pages built from GitHub Actions; "Require approval for first-time
+  contributors" for workflow runs; `master` protected, merged through pull
+  requests.
+- **Results** live as the `games.json.gz` asset of the `results` release,
+  replaced after each tournament (a file committed at each run would grow
+  the history by its full size every time).
+- **A new season** (new Dedale version or settings): edit `season.json`;
+  every game is played again under the new season's name.
+
+Licence: MIT.
