@@ -3,8 +3,9 @@
 # the maze secret (bots are read there through Dedale's sandbox, which clears
 # the environment); the jobs that play run the bots, in the sandbox, with a
 # read-only token and no secrets; only the deploy job can write (the results
-# release, Pages), and it runs no bot. Third-party actions are pinned by
-# commit.
+# release, Pages), and it runs no bot. Only the jobs that play install the
+# libraries bots may import: the schedule job runs no third-party package.
+# Third-party actions are pinned by commit.
 name: Tournament
 
 on:
@@ -103,10 +104,18 @@ jobs:
       - name: Sandbox
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bubblewrap
+          sudo apt-get install -y --no-install-recommends bubblewrap python3-venv
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
+
+      - name: Python for the bots
+        # The season's Python with the libraries bots may import, from the
+        # wheels libraries.txt hashes. Assigned first: under `bash -e` a
+        # failed install stops the step.
+        run: |
+          python=$(python3 -m tools.bot_python build --out "$RUNNER_TEMP/bot-python")
+          echo "DEDALE_PYTHON=$python" >> "$GITHUB_ENV"
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

@@ -4,7 +4,7 @@ from tests.helpers import bot, record
 from tools.common import Season, duo_spec, solo_spec
 from tools.rank import solo_board, standings
 
-SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 2, 2, 2000, 100)
+SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 2, 2, 2000, 100, "3.12")
 
 
 def info(bot_id: str, version: int = 1) -> dict:
@@ -30,6 +30,13 @@ def order(result: dict) -> list[str]:
 
 def schulze_order(result: dict) -> list[str]:
     return [row["id"] for row in sorted(result["duo"], key=lambda row: row["schulze"])]
+
+
+class SettingsTests(unittest.TestCase):
+    def test_what_bots_run_on(self):
+        result = standings(SEASON, [], [], "abc", {"numpy": "2.5.4"})
+        self.assertEqual((result["settings"]["python"], result["settings"]["libraries"]), ("3.12", {"numpy": "2.5.4"}))
+        self.assertEqual(standings(SEASON, [], [], "abc")["settings"]["libraries"], {})
 
 
 class DuoTests(unittest.TestCase):

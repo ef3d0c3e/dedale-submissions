@@ -44,6 +44,9 @@ class Season:
     solo_mazes: int
     startup_ms: int
     move_ms: int
+    # The bots' Python, `3.12`: the libraries' wheels and the bots'
+    # behaviour depend on it.
+    python: str
 
     @classmethod
     def load(cls, path: Path = ROOT / "season.json") -> Season:
@@ -60,6 +63,7 @@ class Season:
             solo_mazes=int(data["solo_mazes"]),
             startup_ms=int(data["startup_ms"]),
             move_ms=int(data["move_ms"]),
+            python=str(data["python"]),
         )
 
     def maze_args(self, seed: str) -> list[str]:

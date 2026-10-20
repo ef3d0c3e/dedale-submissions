@@ -11,7 +11,7 @@ from tests.helpers import bot, chromium, record
 from tests.test_rank import SEASON, info, pairing
 from tools.common import solo_spec, write_games
 from tools.rank import standings
-from tools.site import build, replay_command, shade
+from tools.site import build, listing, replay_command, shade
 
 HOSTILE = '<script>alert("pwned")</script> & co'
 
@@ -28,7 +28,7 @@ class Built(unittest.TestCase):
             + pairing("eve/sly", "_baseline/greedy", 5, 5)
             + [record(solo_spec(SEASON, bot("a/x"), bot("a/x"), 0), [10], 90)]
         )
-        self.standings = standings(SEASON, self.bots, self.games, "f" * 40)
+        self.standings = standings(SEASON, self.bots, self.games, "f" * 40, {"numpy": "2.5.4", "scipy": "1.18.1"})
 
     def build(self, out: Path) -> None:
         games_file = out.parent / "games.json.gz"
@@ -73,6 +73,12 @@ class SiteTests(Built):
             self.build(out)
             index = (out / "index.html").read_text()
             self.assertIn("11×11 mazes with 10 points and\n80% loops; 2 s to start, 100 ms per move.", index)
+            self.assertIn(
+                "Bots run on Python 3.12 with\n"
+                f'<a href="https://github.com/ef3d0c3e/dedale-submissions/blob/{"f" * 40}/libraries.txt">'
+                "the standard library, numpy 2.5.4 and scipy 1.18.1</a>.",
+                index,
+            )
             self.assertIn("Each pair of bots plays 2 games, each on a fresh maze, half of them from each corner.", index)
             self.assertIn("Each bot clears 2 mazes alone", index)
 
@@ -101,6 +107,9 @@ class SiteTests(Built):
             self.build(out)
             page = (out / "bots" / "a" / "x.html").read_text()
             self.assertEqual(page.count("from the top-left corner"), page.count("from the bottom-right corner"))
+
+    def test_listings(self):
+        self.assertEqual([listing(["a"]), listing(["a", "b"]), listing(["a", "b", "c"])], ["a", "a and b", "a, b and c"])
 
     def test_shades(self):
         self.assertEqual([shade(s) for s in (0.5, 0.52, 0.6, 0.9, 0.45, 0.2)], ["", "w1", "w2", "w3", "l2", "l3"])

@@ -148,6 +148,11 @@ def count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
+def listing(items: list[str]) -> str:
+    """`a`, `a and b`, `a, b and c`."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
 def number(value: float | None) -> str:
     """A row's value for sorting, in a `data-` attribute: empty for none."""
     return "" if value is None else f"{value:g}"
@@ -237,13 +242,17 @@ def index(standings: dict) -> str:
     settings = standings["settings"]
     mazes, solo_mazes = settings["mazes_per_pairing"], settings["solo_mazes"]
     width, height = settings["size"].split("x")
+    libraries = [f"{escape(name)} {escape(version)}" for name, version in settings["libraries"].items()]
+    imports = f"the standard library, {listing(libraries)}" if libraries else "the standard library only"
     body = f"""<h1>Dedale competition</h1>
 <p class="muted">Season {escape(standings['season'])}, <a href="{DEDALE}">Dedale</a>
 {escape(standings['dedale'])}. Updated {escape(standings['generated'])} at
 <a href="{REPOSITORY}/commit/{escape(commit)}">{escape(commit[:12])}</a>.
 <a href="{REPOSITORY}">Submit a bot</a>.</p>
 <p class="muted">{width}×{height} mazes with {settings['points']} points and
-{settings['loops']}% loops; {settings['startup_ms'] / 1000:g} s to start, {settings['move_ms']} ms per move.</p>
+{settings['loops']}% loops; {settings['startup_ms'] / 1000:g} s to start, {settings['move_ms']} ms per move.
+Bots run on Python {escape(settings['python'])} with
+<a href="{REPOSITORY}/blob/{escape(commit)}/libraries.txt">{imports}</a>.</p>
 
 <h2>Head to head</h2>
 <p class="muted">Each pair of bots plays {count(mazes, "game")}, each on a fresh maze, half of them from each corner.

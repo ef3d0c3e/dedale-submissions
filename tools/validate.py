@@ -164,7 +164,7 @@ def smoke(report: Report, dedale: str, season: Season, bot: Bot, rival: Bot, san
     if startup != "ok":
         error = player["startup"].get("error") or {}
         detail = f" ({error.get('message')})" if error.get("message") else ""
-        report.fail(f"did not start in time: `{startup}`{detail}; {summary}", bot.id)
+        report.fail(f"did not start: `{startup}`{detail}; {summary}", bot.id)
     elif outcomes.get("crashed", 0):
         report.fail(f"crashed; {summary}", bot.id)
     elif outcomes["ok"] == 0:

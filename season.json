@@ -1,6 +1,7 @@
 {
   "season": "2026-1",
   "dedale": "0.1.0",
+  "python": "3.12",
   "size": "31x31",
   "loops": 80,
   "points": 40,

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from fractions import Fraction
 from pathlib import Path
 
+from tools.bot_python import read_libraries
 from tools.common import ROOT, YARDSTICK, Season, head_commit, read_games
 
 HALF = Fraction(1, 2)
@@ -196,7 +197,10 @@ def solo_board(season: Season, bots: list[dict], games: list[dict]) -> list[dict
     return rows
 
 
-def standings(season: Season, bots: list[dict], games: list[dict], commit: str) -> dict:
+def standings(
+    season: Season, bots: list[dict], games: list[dict], commit: str, libraries: dict[str, str] | None = None
+) -> dict:
+    """`libraries`: what bots may import, as name: version (`libraries.txt`)."""
     duo, head = duo_board(season, bots, games)
     return {
         "season": season.name,
@@ -211,6 +215,8 @@ def standings(season: Season, bots: list[dict], games: list[dict], commit: str) 
             "solo_mazes": season.solo_mazes,
             "startup_ms": season.startup_ms,
             "move_ms": season.move_ms,
+            "python": season.python,
+            "libraries": dict(libraries or {}),
         },
         "bots": bots,
         "duo": duo,
@@ -227,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     season = Season.load(ROOT / "season.json")
     bots = json.loads(Path(args.bots).read_text())
-    result = standings(season, bots, read_games(Path(args.games)), head_commit())
+    result = standings(season, bots, read_games(Path(args.games)), head_commit(), read_libraries())
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(result, indent=1))
     print(f"{len(result['duo'])} bots ranked")

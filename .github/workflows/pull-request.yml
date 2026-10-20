@@ -1,9 +1,9 @@
 # Checks a pull request: the tools' tests on the oldest Python they support,
 # then the submission check (who may change what, what the bots say about
-# themselves, a smoke game each in Dedale's sandbox). Read-only token, no
-# secrets. The submission check runs the base branch's tools, which a pull
-# request cannot change, on the pull request's files. Third-party actions are
-# pinned by commit.
+# themselves, a smoke game each in Dedale's sandbox, with the season's
+# libraries). Read-only token, no secrets. The submission check runs the base
+# branch's tools and libraries, which a pull request cannot change, on the
+# pull request's files. Third-party actions are pinned by commit.
 name: Pull request
 
 on:
@@ -68,12 +68,21 @@ jobs:
       - name: Sandbox
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bubblewrap
+          sudo apt-get install -y --no-install-recommends bubblewrap python3-venv
           # Ubuntu 24.04 keeps unprivileged programs such as bubblewrap from
           # creating user namespaces; the sandbox needs them.
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
+
+      - name: Python for the bots
+        working-directory: trusted
+        # The season's Python with the libraries bots may import, from the
+        # wheels the base branch's libraries.txt hashes. Assigned first:
+        # under `bash -e` a failed install stops the step.
+        run: |
+          python=$(python3 -m tools.bot_python build --out "$RUNNER_TEMP/bot-python")
+          echo "DEDALE_PYTHON=$python" >> "$GITHUB_ENV"
 
       - name: Check the submission
         working-directory: trusted

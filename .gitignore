@@ -3,6 +3,7 @@ __pycache__/
 /out/
 /site/
 /.dedale/
+/.bot-python/
 # Local tool configuration; .mcp.json holds an access token.
 .mcp.json
 .claude/settings.local.json

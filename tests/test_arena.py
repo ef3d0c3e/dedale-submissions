@@ -7,7 +7,7 @@ from tests.helpers import bot, dedale, record, write_bot
 from tools.arena import main, merge, missing, record as record_game, shards
 from tools.common import Season, duo_spec, read_games, solo_spec
 
-SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 2, 1, 2000, 100)
+SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 2, 1, 2000, 100, "3.12")
 POOL = [bot("_baseline/greedy"), bot("ada/wall"), bot("bob/runner", 2)]
 
 
@@ -120,6 +120,7 @@ class TournamentTests(unittest.TestCase):
                     {
                         "season": "test",
                         "dedale": "0.1.0",
+                        "python": "3.12",
                         "size": "11x11",
                         "loops": 80,
                         "points": 10,

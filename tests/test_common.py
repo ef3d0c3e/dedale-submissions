@@ -21,7 +21,7 @@ from tools.common import (
     write_games,
 )
 
-SEASON = Season("test", "0.1.0", 31, 31, 80, 50, 4, 4, 2000, 100)
+SEASON = Season("test", "0.1.0", 31, 31, 80, 50, 4, 4, 2000, 100, "3.12")
 
 
 class SeasonTests(unittest.TestCase):
@@ -38,6 +38,7 @@ class SeasonTests(unittest.TestCase):
                     {
                         "season": "s",
                         "dedale": "0.1.0",
+                        "python": "3.11",
                         "size": "21x11",
                         "loops": 50,
                         "points": 30,
@@ -50,6 +51,7 @@ class SeasonTests(unittest.TestCase):
             )
             season = Season.load(path)
         self.assertEqual((season.width, season.height), (21, 11))
+        self.assertEqual(season.python, "3.11")
         args = season.maze_args("00ff")
         self.assertEqual(args[args.index("--size") + 1], "21x11")
         self.assertEqual(args[args.index("--seed") + 1], "00ff")

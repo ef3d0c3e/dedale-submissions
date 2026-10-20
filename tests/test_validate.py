@@ -11,6 +11,7 @@ from tools.validate import check, literal_version, main
 SEASON = {
     "season": "test",
     "dedale": "0.1.0",
+    "python": "3.12",
     "size": "11x11",
     "loops": 80,
     "points": 10,
@@ -183,6 +184,6 @@ class IdentityTests(unittest.TestCase):
             joined = "\n".join(report.errors)
             self.assertNotIn("bob/runner", joined)
             self.assertTrue(any(n.startswith("✓ played") for n in report.bots["bob/runner"]))
-            self.assertIn("`bob/broken`: did not start in time: `init_error` (RuntimeError: no luck)", joined)
+            self.assertIn("`bob/broken`: did not start: `init_error` (RuntimeError: no luck)", joined)
             self.assertIn("`bob/quitter`: crashed", joined)
             self.assertIn("**Refused**", report.markdown())

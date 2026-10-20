@@ -7,6 +7,7 @@ the bots already there, and the ranking is published at
 
 - [How it works](#how-it-works)
 - [Submitting a bot](#submitting-a-bot)
+- [Libraries](#libraries)
 - [Games](#games)
 - [Ranking](#ranking)
 - [Baselines](#baselines)
@@ -58,10 +59,11 @@ VERSION = 1             # raise it whenever the bot changes
 refuses changed files with the same version. A new version plays all its
 games again; the old version's games stay in the history.
 
-**Rules.** Bots are Python, standard library only, and run in Dedale's
-sandbox: no network, an empty environment, a read-only view of the system
-and of their own folder, a private `/tmp` of 64 MiB, 2048 MiB of memory per
-process, 64 processes and threads, one CPU. Each bot gets the season's
+**Rules.** Bots are Python 3.12, with the standard library and the
+[libraries](#libraries) below, and run in Dedale's sandbox: no network, an
+empty environment, a read-only view of the system and of their own folder,
+a private `/tmp` of 64 MiB, 2048 MiB of memory per process, 64 processes
+and threads, one CPU. Each bot gets the season's
 startup budget for importing it and running `init()`, then a time limit
 per move ([`season.json`](season.json)); a late move is lost and the bot
 stays.
@@ -74,6 +76,39 @@ dedale about bots/ada/racer/main.py                 # what Dedale reads
 dedale run bots/ada/racer/main.py bots/_baseline/greedy/main.py --sandbox
 python3 -m tools.validate --author ada              # the pull request's check
 ```
+
+If your bot imports a library, run it with the season's Python (see
+[Libraries](#libraries)): add `--python .bot-python/bin/python` to
+`dedale run`, or set `DEDALE_PYTHON=.bot-python/bin/python`, which
+`tools.validate` passes on to Dedale too.
+
+## Libraries
+
+Besides the standard library, bots may import:
+
+| Library | Version | For instance |
+|---|---|---|
+| [numpy](https://numpy.org) | 2.5.4 | Arrays: distance grids, flood fills, fast simulations of the game |
+| [scipy](https://scipy.org) | 1.18.1 | `scipy.sparse.csgraph` (breadth-first search, Dijkstra, all-pairs distances, in C), `scipy.optimize.linear_sum_assignment`, `scipy.ndimage` |
+| [networkx](https://networkx.org) | 3.7 | Graphs in plain Python: shortest paths, approximate tours |
+
+They run on **Python 3.12**, the same for every bot all season, pinned in
+[`libraries.txt`](libraries.txt) with the hash of every file. Importing
+counts against the startup budget, but takes a fraction of it: about
+20 ms for numpy, 60 ms for `scipy.sparse.csgraph` and 35 ms for networkx.
+They compute on one thread, like the bot: each bot has one CPU.
+
+To get the same at home, with Python 3.12:
+
+```sh
+python3.12 -m tools.bot_python build    # makes .bot-python/, prints its python
+```
+
+or install `numpy==2.5.4 scipy==1.18.1 networkx==3.7` in a virtual
+environment of your own. Packages from `pip install --user` do not count:
+they live in your home directory, which the sandbox hides, so a bot that
+imports one works without `--sandbox` and fails with it. Other packages are
+not available.
 
 ## Games
 
@@ -140,22 +175,27 @@ dedale run bots/ada/racer/main.py bots/_baseline/greedy/main.py \
     --maze ded2-31x31-l80-p40-1a2b3c4d5e6f7a8b --swap --startup-ms 5000 --move-ms 100
 ```
 
-with the Dedale version the game was played with. Bots that depend on
-timing may play slightly differently.
+with the Dedale version the game was played with, and for bots that import
+a library, the season's Python (`--python`, see [Libraries](#libraries)).
+Bots that depend on timing may play slightly differently.
 
 ## For maintainers
 
 - **Tools** (`tools/`, standard library only, Python 3.10 or later, run as
   `python3 -m tools.<name>` from the root): `fetch_dedale` (the season's
-  release, checked against its checksums), `validate` (the pull request
-  check), `arena` (schedule, play and merge games), `rank` (standings),
-  `site` (the static site). `scripts/check.sh` runs their tests (the
-  end-to-end ones need Dedale: `DEDALE` or `dedale` on the PATH).
+  release, checked against its checksums), `bot_python` (the bots' Python:
+  `build` makes a virtual environment with `libraries.txt`, from wheels and
+  only the files hashed; `pin numpy==… scipy==…` rewrites the file from
+  PyPI, listing every dependency too), `validate` (the pull request check),
+  `arena` (schedule, play and merge games), `rank` (standings), `site` (the
+  static site). `scripts/check.sh` runs their tests (the end-to-end ones
+  need Dedale: `DEDALE` or `dedale` on the PATH).
 - **Workflows**: `pull-request.yml` (read-only token, no secrets: the
   tools' tests and the submission check) and `tournament.yml` (on each push
   to `master`: schedule, play in parallel jobs, then merge, rank and deploy;
   only the schedule job holds the `MAZE_SECRET` secret, only the deploy job
-  can write).
+  can write). The bots run on the bots' Python in the play jobs and the
+  submission check; the schedule job installs no library.
 - **Settings**: a repository secret `MAZE_SECRET` (any long random string);
   Pages built from GitHub Actions; "Require approval for first-time
   contributors" for workflow runs; `master` protected, merged through pull
@@ -163,7 +203,9 @@ timing may play slightly differently.
 - **Results** live as the `games.json.gz` asset of the `results` release,
   replaced after each tournament (a file committed at each run would grow
   the history by its full size every time).
-- **A new season** (new Dedale version or settings): edit `season.json`;
-  every game is played again under the new season's name.
+- **A new season** (new Dedale version, settings, Python or libraries):
+  edit `season.json` and `libraries.txt` (`bot_python pin`); every game is
+  played again under the new season's name. The runner's `python3` must
+  be the season's Python: `bot_python build` stops otherwise.
 
 Licence: MIT.
