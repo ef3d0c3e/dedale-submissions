@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tests.helpers import dedale, write_bot
 from tools.common import MAX_BOT_BYTES
-from tools.validate import check, literal_version
+from tools.validate import check, literal_version, main
 
 SEASON = {
     "season": "test",
@@ -73,6 +73,13 @@ class PathTests(unittest.TestCase):
             report = repo.check("Boss")
             self.assertEqual([e for e in report.errors if "outside" in e], [], report.errors)
 
+    def test_a_pull_request_cannot_make_its_author_a_maintainer(self):
+        with Repo() as repo:
+            (repo.root / "MAINTAINERS").write_text("boss\neve\n")
+            write_bot(repo.root, "_baseline/greedy", name="Greedy", version=2)
+            report = repo.check("eve")
+            self.assertEqual(len([e for e in report.errors if "outside" in e]), 2, report.errors)
+
     def test_files_belong_in_a_bot_folder(self):
         with Repo() as repo:
             (repo.root / "bots" / "bob").mkdir(parents=True)
@@ -103,6 +110,13 @@ class PathTests(unittest.TestCase):
             report = repo.check("ada")
             self.assertEqual(report.errors, [])
             self.assertEqual(report.bots["ada/wall"], ["✓ removed"])
+
+    def test_checking_another_checkout(self):
+        with Repo() as repo:
+            write_bot(repo.root, "bob/runner", name="Runner")
+            repo.commit("pull request")
+            args = ["--author", "eve", "--base", "base", "--root", str(repo.root), "--no-games"]
+            self.assertEqual(main(args), 1, "bob's folder is not eve's")
 
     def test_nothing_to_check(self):
         with Repo() as repo:

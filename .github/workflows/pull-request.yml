@@ -1,0 +1,79 @@
+# Checks a pull request: the tools' tests on the oldest Python they support,
+# then the submission check (who may change what, what the bots say about
+# themselves, a smoke game each in Dedale's sandbox). Read-only token, no
+# secrets. The submission check runs the base branch's tools, which a pull
+# request cannot change, on the pull request's files. Third-party actions are
+# pinned by commit.
+name: Pull request
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-request-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  tools:
+    name: Tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+
+      - name: Dedale
+        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+
+      - name: Checks
+        run: scripts/check.sh
+
+  submission:
+    name: Submission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: The base branch's tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: The pull request, with its history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: submitted
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Dedale
+        working-directory: trusted
+        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+
+      - name: Sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          # Ubuntu 24.04 keeps unprivileged programs such as bubblewrap from
+          # creating user namespaces; the sandbox needs them.
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: Check the submission
+        working-directory: trusted
+        env:
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 -m tools.validate --author "$AUTHOR" --base "$BASE" \
+              --root ../submitted --dedale "$DEDALE" --sandbox

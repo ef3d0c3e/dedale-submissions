@@ -1,9 +1,11 @@
 """Decides whether a pull request's bots may join: run by the pull request
 check, and by submitters before opening one.
 
-    python3 -m tools.validate --author LOGIN [--base REF] [--dedale PATH] [--sandbox]
+    python3 -m tools.validate --author LOGIN [--base REF] [--dedale PATH] [--sandbox] [--root DIR]
 
-Prints a Markdown report (also written to `GITHUB_STEP_SUMMARY` when set) and
+`--root` checks another checkout: the pull request check runs the base
+branch's tools, which a pull request cannot change, on the pull request's
+files. Prints a Markdown report (also written to `GITHUB_STEP_SUMMARY` when set) and
 exits with 1 when anything is wrong, listing every reason.
 """
 
@@ -79,11 +81,13 @@ def changed_paths(root: Path, base: str) -> list[str]:
     return [line for line in done.stdout.splitlines() if line]
 
 
-def maintainers(root: Path) -> set[str]:
-    path = root / "MAINTAINERS"
-    if not path.exists():
+def maintainers(root: Path, base: str) -> set[str]:
+    """The maintainers' logins, as the base branch lists them: a pull request
+    cannot make its author one."""
+    done = git(root, "show", f"{base}:MAINTAINERS")
+    if done.returncode != 0:
         return set()
-    lines = (line.split("#")[0].strip() for line in path.read_text().splitlines())
+    lines = (line.split("#")[0].strip() for line in done.stdout.splitlines())
     return {line.lower() for line in lines if line}
 
 
@@ -178,7 +182,7 @@ def check(
     games: bool = True,
 ) -> Report:
     report = Report()
-    maintainer = author.lower() in maintainers(root)
+    maintainer = author.lower() in maintainers(root, base)
     paths = changed_paths(root, base)
 
     touched: set[str] = set()
@@ -264,8 +268,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dedale", default=os.environ.get("DEDALE") or shutil.which("dedale"))
     parser.add_argument("--sandbox", action="store_true", help="play in Dedale's sandbox")
     parser.add_argument("--no-games", action="store_true", help="skip the smoke games")
+    parser.add_argument("--root", type=Path, default=ROOT, help="the checkout to check")
     args = parser.parse_args(argv)
-    report = check(ROOT, args.base, args.author, args.dedale, args.sandbox, not args.no_games)
+    root = args.root.resolve()
+    report = check(root, args.base, args.author, args.dedale, args.sandbox, not args.no_games)
     text = report.markdown()
     print(text)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
