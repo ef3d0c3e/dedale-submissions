@@ -16,7 +16,7 @@ from tools.common import (
     read_bots,
     read_games,
     solo_spec,
-    spec_seed,
+    spec_draw,
     write_games,
 )
 
@@ -103,29 +103,33 @@ class GameTests(unittest.TestCase):
         self.assertEqual(len(maze_seed(None, "a")), 16)
         self.assertNotEqual(maze_seed(None, "a"), maze_seed(None, "a"))
 
-    def test_both_corners_share_their_mazes(self):
+    def test_duo_mazes_and_corners(self):
         a, b = bot("ada/wall"), bot("bob/runner", 2)
-        spec = duo_spec(SEASON, b, a, 1, False)
+        spec = duo_spec(SEASON, b, a, 1)
+        self.assertEqual(spec, duo_spec(SEASON, a, b, 1))
         self.assertEqual(spec["bots"], ["ada/wall@1", "bob/runner@2"])
-        swapped = duo_spec(SEASON, a, b, 1, True)
-        self.assertNotEqual(game_id(spec), game_id(swapped))
-        self.assertEqual(spec_seed(b"s", spec), spec_seed(b"s", swapped))
-        self.assertNotEqual(spec_seed(b"s", spec), spec_seed(b"s", duo_spec(SEASON, a, b, 2, False)))
+        self.assertNotIn("swapped", spec, "the corner is drawn, not part of what the game is")
+        self.assertEqual(spec_draw(b"s", spec), spec_draw(b"s", spec))
+        self.assertNotEqual(spec_draw(b"s", spec)[0], spec_draw(b"s", duo_spec(SEASON, a, b, 2))[0])
         # A new version plays new mazes.
-        newer = duo_spec(SEASON, a, bot("bob/runner", 3), 1, False)
-        self.assertNotEqual(spec_seed(b"s", spec), spec_seed(b"s", newer))
+        newer = duo_spec(SEASON, a, bot("bob/runner", 3), 1)
+        self.assertNotEqual(spec_draw(b"s", spec)[0], spec_draw(b"s", newer)[0])
+        # A coin flip per game.
+        corners = [spec_draw(b"s", duo_spec(SEASON, a, b, maze))[1] for maze in range(400)]
+        self.assertTrue(150 < sum(corners) < 250, sum(corners))
+        self.assertEqual(len(spec_draw(None, spec)[0]), 16)
 
     def test_the_yardstick_plays_a_bots_own_solo_mazes(self):
         wall, greedy = bot("ada/wall"), bot("_baseline/greedy")
         own = solo_spec(SEASON, wall, wall, 0)
         yardstick = solo_spec(SEASON, greedy, wall, 0)
-        self.assertEqual(spec_seed(b"s", own), spec_seed(b"s", yardstick))
+        self.assertEqual(spec_draw(b"s", own), spec_draw(b"s", yardstick))
         self.assertNotEqual(game_id(own), game_id(yardstick))
 
     def test_the_games_file(self):
         a, b = bot("ada/wall"), bot("bob/runner")
         games = [
-            record(duo_spec(SEASON, a, b, 0, False), [60, 40]),
+            record(duo_spec(SEASON, a, b, 0), [60, 40]),
             record(solo_spec(SEASON, a, a, 0), [100]),
         ]
         with tempfile.TemporaryDirectory() as tmp:
@@ -138,7 +142,7 @@ class GameTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), first, "the same games make the same bytes")
 
     def test_malformed_games_are_refused(self):
-        good = record(duo_spec(SEASON, bot("ada/wall"), bot("bob/runner"), 0, False), [60, 40])
+        good = record(duo_spec(SEASON, bot("ada/wall"), bot("bob/runner"), 0), [60, 40])
         check_game(good)
         broken = [
             dict(good, id="0" * 16),
@@ -146,6 +150,7 @@ class GameTests(unittest.TestCase):
             dict(good, result=dict(good["result"], half_points=[60, -1])),
             dict(good, players=[{"startup": "ok", "failures": 0}]),
             {key: value for key, value in good.items() if key != "code"},
+            dict(good, swapped="yes"),
             dict(good, spec=dict(good["spec"], kind="trio")),
             "a game",
         ]

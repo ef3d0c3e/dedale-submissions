@@ -21,8 +21,9 @@ class ScheduleTests(unittest.TestCase):
         games = missing(SEASON, POOL, set(), b"secret")
         duo = [g for g in games if g["spec"]["kind"] == "duo"]
         solo = [g for g in games if g["spec"]["kind"] == "solo"]
-        # 3 pairings, 2 mazes, both corners.
-        self.assertEqual(len(duo), 3 * 2 * 2)
+        # 3 pairings, 2 mazes, one game each.
+        self.assertEqual(len(duo), 3 * 2)
+        self.assertTrue(all(isinstance(g["swapped"], bool) for g in games))
         # Each bot's own maze, and the yardstick on the two others'.
         self.assertEqual(len(solo), 3 + 2)
         self.assertEqual(len({g["id"] for g in games}), len(games))
@@ -45,16 +46,16 @@ class ScheduleTests(unittest.TestCase):
         done = {g["id"] for g in missing(SEASON, POOL, set(), b"secret")}
         todo = missing(SEASON, [*POOL, bot("cleo/new")], done, b"secret")
         self.assertTrue(all("cleo/new@1" in involved(game) for game in todo))
-        # Against each of the 3 bots, 2 mazes from both corners; its solo
-        # maze, alone and by the yardstick.
-        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "duo"]), 3 * 2 * 2)
+        # Against each of the 3 bots, 2 mazes; its solo maze, alone and by
+        # the yardstick.
+        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "duo"]), 3 * 2)
         self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "solo"]), 2)
 
     def test_a_new_version_plays_only_its_own_games(self):
         done = {g["id"] for g in missing(SEASON, POOL, set(), b"secret")}
         todo = missing(SEASON, [POOL[0], POOL[1], bot("bob/runner", 3)], done, b"secret")
         self.assertTrue(all("bob/runner@3" in involved(game) for game in todo))
-        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "duo"]), 2 * 2 * 2)
+        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "duo"]), 2 * 2)
         self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "solo"]), 2)
 
     def test_shards_keep_groups_whole(self):
@@ -83,15 +84,18 @@ REPLAY = {
 
 class RecordTests(unittest.TestCase):
     def test_what_a_game_keeps(self):
-        spec = duo_spec(SEASON, POOL[1], POOL[2], 0, False)
+        spec = duo_spec(SEASON, POOL[1], POOL[2], 0)
         game = record_game(spec, REPLAY, "abc")
+        self.assertFalse(game["swapped"])
+        swapped = dict(REPLAY, config=dict(REPLAY["config"], seating="duo_swapped"))
+        self.assertTrue(record_game(spec, swapped, "abc")["swapped"])
         self.assertEqual(game["code"], REPLAY["code"])
         self.assertEqual(game["result"]["half_points"], [12, 8])
         self.assertEqual(game["players"], [{"startup": "ok", "failures": 0}, {"startup": "late", "failures": 10}])
         self.assertEqual((game["commit"], game["dedale"], game["move_ms"]), ("abc", "0.1.0", 100))
 
     def test_merging(self):
-        a = record(duo_spec(SEASON, POOL[1], POOL[2], 0, False), [12, 8])
+        a = record(duo_spec(SEASON, POOL[1], POOL[2], 0), [12, 8])
         b = record(solo_spec(SEASON, POOL[1], POOL[1], 0), [20])
         with tempfile.TemporaryDirectory() as tmp:
             shard = Path(tmp) / "shard.json"
@@ -134,10 +138,9 @@ class TournamentTests(unittest.TestCase):
             )
             self.assertEqual(run(), 0)
             played = read_games(games)
-            # One pairing from both corners, two own solo mazes, one yardstick game.
-            self.assertEqual(len(played), 2 + 2 + 1)
-            duo = [g for g in played if g["spec"]["kind"] == "duo"]
-            self.assertEqual(len({g["code"] for g in duo}), 1, "both corners share the maze")
+            # One pairing on one maze, two own solo mazes, one yardstick game.
+            self.assertEqual(len(played), 1 + 2 + 1)
+            self.assertTrue(all(isinstance(g["swapped"], bool) for g in played))
             solo = {(g["spec"]["bots"][0], g["spec"]["mazes_of"]): g["code"] for g in played if g["spec"]["kind"] == "solo"}
             self.assertEqual(solo[("_baseline/greedy@1", "ada/down@1")], solo[("ada/down@1", "ada/down@1")])
             self.assertTrue(all(len(g["result"]["half_points"]) == len(g["spec"]["bots"]) for g in played))
@@ -149,7 +152,7 @@ class TournamentTests(unittest.TestCase):
             self.assertEqual(run(), 0)
             again = read_games(games)
             # The new version: the pairing again, its solo maze and the yardstick's.
-            self.assertEqual(len(again), len(played) + 2 + 1 + 1)
+            self.assertEqual(len(again), len(played) + 1 + 1 + 1)
 
     def test_the_command_line(self):
         with tempfile.TemporaryDirectory() as tmp:

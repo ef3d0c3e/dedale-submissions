@@ -155,24 +155,29 @@ def about(dedale: str, entries: list[tuple[str, Path]], sandbox: bool = False) -
     ]
 
 
-def maze_seed(secret: bytes | None, *parts: str) -> str:
-    """A maze seed (16 hex digits): from the secret and what identifies the
-    game, so nobody can know it before it is played, yet every run of the
-    schedule finds the same; random without a secret."""
+def draw(secret: bytes | None, *parts: str) -> bytes:
+    """32 bytes from the secret and what identifies a game, so nobody can
+    know them before it is played, yet every run of the schedule finds the
+    same; random without a secret."""
     if secret is None:
-        return os.urandom(8).hex()
-    return hmac.new(secret, "|".join(parts).encode(), hashlib.sha256).hexdigest()[:16]
+        return os.urandom(32)
+    return hmac.new(secret, "|".join(parts).encode(), hashlib.sha256).digest()
 
 
-def duo_spec(season: Season, a: Bot, b: Bot, maze: int, swapped: bool) -> dict:
-    """A duo game: `a` and `b` by id, `a` starting top-left unless swapped."""
+def maze_seed(secret: bytes | None, *parts: str) -> str:
+    """A maze seed, 16 hex digits."""
+    return draw(secret, *parts)[:8].hex()
+
+
+def duo_spec(season: Season, a: Bot, b: Bot, maze: int) -> dict:
+    """A duo game: `a` and `b` by id, on their pairing's maze `maze`. Who
+    starts where is drawn with the maze (`spec_draw`)."""
     first, second = sorted((a, b), key=lambda bot: bot.id)
     return {
         "season": season.name,
         "kind": "duo",
         "bots": [first.key, second.key],
         "maze": maze,
-        "swapped": swapped,
     }
 
 
@@ -187,18 +192,17 @@ def solo_spec(season: Season, bot: Bot, mazes_of: Bot, maze: int) -> dict:
     }
 
 
-def spec_seed(secret: bytes | None, spec: dict) -> str:
-    """The seed of a game's maze. Both corners of a pairing share their
-    mazes, and the yardstick plays a bot's own solo mazes."""
+def spec_draw(secret: bytes | None, spec: dict) -> tuple[str, bool]:
+    """A game's maze seed, and whether its first bot starts bottom-right: a
+    coin flip for each duo game. The yardstick plays a bot's own solo mazes."""
     if spec["kind"] == "duo":
-        parts = [spec["season"], "duo", *spec["bots"], str(spec["maze"])]
-    else:
-        parts = [spec["season"], "solo", spec["mazes_of"], str(spec["maze"])]
-    return maze_seed(secret, *parts)
+        drawn = draw(secret, spec["season"], "duo", *spec["bots"], str(spec["maze"]))
+        return drawn[:8].hex(), bool(drawn[8] & 1)
+    return maze_seed(secret, spec["season"], "solo", spec["mazes_of"], str(spec["maze"])), False
 
 
 def game_id(spec: dict) -> str:
-    """A game's id: a hash of what it is (who, which maze, which corner)."""
+    """A game's id: a hash of what it is (who, which maze)."""
     canonical = json.dumps(spec, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
@@ -235,6 +239,7 @@ GAME_FIELDS = {
     "dedale": str,
     "startup_ms": int,
     "move_ms": int,
+    "swapped": bool,
     "result": dict,
     "players": list,
 }

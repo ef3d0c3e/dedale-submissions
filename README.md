@@ -77,8 +77,9 @@ python3 -m tools.validate --author ada              # the pull request's check
 
 ## Games
 
-Each pair of bots plays 10 mazes from both corners: 20 games. Each bot
-also clears 20 mazes alone. The maze size, number of points, share of
+Each pair of bots plays 20 games, each on its own maze, with the starting
+corners drawn at random for each game. Each bot also clears 20 mazes
+alone. The maze size, number of points, share of
 loops and timings are the season's ([`season.json`](season.json)):
 Dedale's defaults, 31×31 with 40 points and 80% loops, 5 s to start and
 100 ms per move.
@@ -87,10 +88,11 @@ Tournaments only play what is missing. After a merge, a new bot, or a new
 version of one, plays its games against every bot in the pool; games
 already played are never played again.
 
-Mazes are **fresh for each pairing**: their seeds come from a secret and the
-two bots' versions, so nobody can know or tune for them before they are
-played. Each game's maze code is published with its result, so any game can
-be played again without the secret.
+Mazes are **fresh for each pairing**: their seeds, and who starts in which
+corner, come from a secret and the two bots' versions, so nobody can know
+or tune for them before they are played. Each game's maze code and
+corners are published with its result, so any game can be played again
+without the secret.
 
 Every game is recorded in `games.json.gz`, published on the site: who
 played (`<login>/<bot>@<version>`), the maze code, the corner, the timings,

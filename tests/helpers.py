@@ -57,7 +57,9 @@ def bot(bot_id: str, version: int = 1, name: str | None = None) -> Bot:
     )
 
 
-def record(spec: dict, half_points: list[int], turns: int = 100, reason: str = "cleared") -> dict:
+def record(
+    spec: dict, half_points: list[int], turns: int = 100, reason: str = "cleared", swapped: bool = False
+) -> dict:
     """A game as the arena records it."""
     winner = None
     if len(half_points) == 2 and half_points[0] != half_points[1]:
@@ -71,6 +73,7 @@ def record(spec: dict, half_points: list[int], turns: int = 100, reason: str = "
         "dedale": "0.1.0",
         "startup_ms": 2000,
         "move_ms": 100,
+        "swapped": swapped,
         "result": {
             "reason": reason,
             "turns": turns,

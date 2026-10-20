@@ -172,7 +172,7 @@ def replay_command(game: dict) -> str:
     """How to play a game again, from a clone of the repository."""
     spec = game["spec"]
     files = " ".join(f"bots/{key.split('@')[0]}/main.py" for key in spec["bots"])
-    swap = " --swap" if spec.get("swapped") else ""
+    swap = " --swap" if game["swapped"] else ""
     return (
         f"git checkout {game['commit']}\n"
         f"dedale run {files} --maze {game['code']}{swap} "
@@ -246,7 +246,7 @@ def index(standings: dict) -> str:
 {settings['loops']}% loops; {settings['startup_ms'] / 1000:g} s to start, {settings['move_ms']} ms per move.</p>
 
 <h2>Head to head</h2>
-<p class="muted">Each pair of bots plays {2 * mazes} games, {count(mazes, "fresh maze")} from both corners.
+<p class="muted">Each pair of bots plays {count(mazes, "game")}, each on a fresh maze, the corners drawn at random.
 <strong>Points</strong>: a bot's share of the points against each opponent, averaged over its
 opponents, in percent (50 is even). <strong>Win rate</strong>: its games won, draws counting half.
 <strong>Schulze</strong>: its rank by the Schulze method, where a bot ranks above another when it
@@ -306,7 +306,7 @@ def bot_page(bot: dict, standings: dict, games: dict[str, dict]) -> str:
                 points = game["result"]["half_points"]
                 mine, theirs = points[seat] / 2, points[1 - seat] / 2
                 record[0 if mine > theirs else 1 if mine == theirs else 2] += 1
-                corner = "bottom-right" if (seat == 0) == bool(game["spec"]["swapped"]) else "top-left"
+                corner = "bottom-right" if (seat == 0) == game["swapped"] else "top-left"
                 listed.append(
                     f"<li>{mine:g} to {theirs:g}, from the {corner} corner, "
                     f"{escape(game['result']['reason'].replace('_', ' '))} after "

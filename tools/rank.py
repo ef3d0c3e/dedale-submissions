@@ -59,7 +59,7 @@ def pairings(season: Season, keys: dict[str, str], games: list[dict]) -> dict[tu
             pairing.won += mine > theirs
             pairing.drawn += mine == theirs
             pairing.lost += mine < theirs
-    expected = 2 * season.mazes_per_pairing
+    expected = season.mazes_per_pairing
     return {pair: p for pair, p in found.items() if len(p.games) == expected}
 
 

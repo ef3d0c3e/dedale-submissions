@@ -6,9 +6,9 @@ are played, for the bots in the pool now (`<login>/<bot>@<version>`).
     python3 -m tools.arena merge --games FILE --out FILE SHARD...
     python3 -m tools.arena run --dedale PATH --games FILE [--sandbox]   # all three, here
 
-Maze seeds come from the `MAZE_SECRET` environment variable (see
-`common.maze_seed`); without it, from a secret drawn for the run, so mazes
-are random but both corners of a maze still share it.
+Maze seeds and corners come from the `MAZE_SECRET` environment variable
+(see `common.spec_draw`); without it, from a secret drawn for the run, so
+they are random, but the yardstick still plays a bot's own solo mazes.
 """
 
 from __future__ import annotations
@@ -39,26 +39,28 @@ from tools.common import (
     read_bots,
     read_games,
     solo_spec,
-    spec_seed,
+    spec_draw,
     write_games,
 )
 
 
 def missing(season: Season, pool: list[Bot], done: set[str], secret: bytes) -> list[dict]:
-    """The games still to play, each with its seed, its bots' files in seat
-    order, and its group: a pairing's games, or a bot's solo games, which
-    one runner plays one after the other."""
+    """The games still to play, each with its seed and corner, its bots'
+    files in seat order, and its group: a pairing's games, or a bot's solo
+    games, which one runner plays one after the other."""
     pool = sorted(pool, key=lambda bot: bot.id)
     yardstick = next((bot for bot in pool if bot.id == YARDSTICK), None)
     games = []
 
     def add(spec: dict, seats: list[Bot], group: str) -> None:
         if game_id(spec) not in done:
+            seed, swapped = spec_draw(secret, spec)
             games.append(
                 {
                     "id": game_id(spec),
                     "spec": spec,
-                    "seed": spec_seed(secret, spec),
+                    "seed": seed,
+                    "swapped": swapped,
                     "bots": [str(bot.path) for bot in seats],
                     "group": group,
                 }
@@ -66,8 +68,7 @@ def missing(season: Season, pool: list[Bot], done: set[str], secret: bytes) -> l
 
     for a, b in itertools.combinations(pool, 2):
         for maze in range(season.mazes_per_pairing):
-            for swapped in (False, True):
-                add(duo_spec(season, a, b, maze, swapped), [a, b], f"{a.key} {b.key}")
+            add(duo_spec(season, a, b, maze), [a, b], f"{a.key} {b.key}")
     for bot in pool:
         for maze in range(season.solo_mazes):
             add(solo_spec(season, bot, bot, maze), [bot], bot.key)
@@ -101,6 +102,7 @@ def record(spec: dict, replay: dict, commit: str) -> dict:
         "dedale": replay["dedale"],
         "startup_ms": replay["config"]["startup_ms"],
         "move_ms": replay["config"]["move_ms"],
+        "swapped": replay["config"]["seating"] == "duo_swapped",
         "result": {
             "reason": result["reason"],
             "turns": result["turns"],
@@ -123,7 +125,7 @@ def play_shard(
     played, errors = [], []
     for game in games:
         seats = [Bot(id=f"seat{i}", path=root / path) for i, path in enumerate(game["bots"])]
-        swapped = bool(game["spec"].get("swapped"))
+        swapped = bool(game.get("swapped"))
         for attempt in (1, 2):
             try:
                 replay = play(dedale, season, seats, game["seed"], swapped, sandbox)

@@ -4,7 +4,7 @@
   "size": "31x31",
   "loops": 80,
   "points": 40,
-  "mazes_per_pairing": 10,
+  "mazes_per_pairing": 20,
   "solo_mazes": 20,
   "startup_ms": 5000,
   "move_ms": 100

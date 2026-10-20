@@ -4,7 +4,7 @@ from tests.helpers import bot, record
 from tools.common import Season, duo_spec, solo_spec
 from tools.rank import solo_board, standings
 
-SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 1, 2, 2000, 100)
+SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 2, 2, 2000, 100)
 
 
 def info(bot_id: str, version: int = 1) -> dict:
@@ -12,14 +12,14 @@ def info(bot_id: str, version: int = 1) -> dict:
 
 
 def pairing(a: str, b: str, mine: int, theirs: int, va: int = 1, vb: int = 1) -> list[dict]:
-    """Both corners of the season's maze, `a` scoring `mine` half-points in
-    each against `b`'s `theirs`."""
+    """The pairing's two games, one from each corner, `a` scoring `mine`
+    half-points in each against `b`'s `theirs`."""
     games = []
-    for swapped in (False, True):
-        spec = duo_spec(SEASON, bot(a, va), bot(b, vb), 0, swapped)
+    for maze in (0, 1):
+        spec = duo_spec(SEASON, bot(a, va), bot(b, vb), maze)
         first = spec["bots"][0].split("@")[0]
         points = [mine, theirs] if first == a else [theirs, mine]
-        games.append(record(spec, points))
+        games.append(record(spec, points, swapped=maze == 1))
     return games
 
 
