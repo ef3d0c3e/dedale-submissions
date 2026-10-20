@@ -16,7 +16,8 @@ from tools.common import (
     read_bots,
     read_games,
     solo_spec,
-    spec_draw,
+    spec_seed,
+    swapped_mazes,
     write_games,
 )
 
@@ -103,27 +104,37 @@ class GameTests(unittest.TestCase):
         self.assertEqual(len(maze_seed(None, "a")), 16)
         self.assertNotEqual(maze_seed(None, "a"), maze_seed(None, "a"))
 
-    def test_duo_mazes_and_corners(self):
+    def test_duo_mazes(self):
         a, b = bot("ada/wall"), bot("bob/runner", 2)
         spec = duo_spec(SEASON, b, a, 1)
         self.assertEqual(spec, duo_spec(SEASON, a, b, 1))
         self.assertEqual(spec["bots"], ["ada/wall@1", "bob/runner@2"])
         self.assertNotIn("swapped", spec, "the corner is drawn, not part of what the game is")
-        self.assertEqual(spec_draw(b"s", spec), spec_draw(b"s", spec))
-        self.assertNotEqual(spec_draw(b"s", spec)[0], spec_draw(b"s", duo_spec(SEASON, a, b, 2))[0])
+        self.assertEqual(spec_seed(b"s", spec), spec_seed(b"s", spec))
+        self.assertNotEqual(spec_seed(b"s", spec), spec_seed(b"s", duo_spec(SEASON, a, b, 2)))
         # A new version plays new mazes.
         newer = duo_spec(SEASON, a, bot("bob/runner", 3), 1)
-        self.assertNotEqual(spec_draw(b"s", spec)[0], spec_draw(b"s", newer)[0])
-        # A coin flip per game.
-        corners = [spec_draw(b"s", duo_spec(SEASON, a, b, maze))[1] for maze in range(400)]
-        self.assertTrue(150 < sum(corners) < 250, sum(corners))
-        self.assertEqual(len(spec_draw(None, spec)[0]), 16)
+        self.assertNotEqual(spec_seed(b"s", spec), spec_seed(b"s", newer))
+        self.assertEqual(len(spec_seed(None, spec)), 16)
+
+    def test_corners_split_evenly(self):
+        a = bot("ada/wall")
+        draws = []
+        for other in ("bob/runner", "cleo/fast", "dan/slow"):
+            specs = [duo_spec(SEASON, a, bot(other), maze) for maze in range(20)]
+            swapped = swapped_mazes(b"s", specs)
+            self.assertEqual(len(swapped), 10)
+            self.assertEqual(swapped, swapped_mazes(b"s", list(reversed(specs))))
+            self.assertEqual(len(swapped_mazes(None, specs)), 10)
+            draws.append(swapped)
+        self.assertEqual(len({frozenset(d) for d in draws}), 3, "each pairing draws its own half")
+        self.assertEqual(len(swapped_mazes(b"s", specs[:5])), 2)
 
     def test_the_yardstick_plays_a_bots_own_solo_mazes(self):
         wall, greedy = bot("ada/wall"), bot("_baseline/greedy")
         own = solo_spec(SEASON, wall, wall, 0)
         yardstick = solo_spec(SEASON, greedy, wall, 0)
-        self.assertEqual(spec_draw(b"s", own), spec_draw(b"s", yardstick))
+        self.assertEqual(spec_seed(b"s", own), spec_seed(b"s", yardstick))
         self.assertNotEqual(game_id(own), game_id(yardstick))
 
     def test_the_games_file(self):

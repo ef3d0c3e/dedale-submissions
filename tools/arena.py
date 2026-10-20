@@ -7,8 +7,9 @@ are played, for the bots in the pool now (`<login>/<bot>@<version>`).
     python3 -m tools.arena run --dedale PATH --games FILE [--sandbox]   # all three, here
 
 Maze seeds and corners come from the `MAZE_SECRET` environment variable
-(see `common.spec_draw`); without it, from a secret drawn for the run, so
-they are random, but the yardstick still plays a bot's own solo mazes.
+(see `common.spec_seed` and `common.swapped_mazes`); without it, from a
+secret drawn for the run, so they are random, but each pairing still splits
+its corners evenly and the yardstick still plays a bot's own solo mazes.
 """
 
 from __future__ import annotations
@@ -39,7 +40,8 @@ from tools.common import (
     read_bots,
     read_games,
     solo_spec,
-    spec_draw,
+    spec_seed,
+    swapped_mazes,
     write_games,
 )
 
@@ -52,14 +54,13 @@ def missing(season: Season, pool: list[Bot], done: set[str], secret: bytes) -> l
     yardstick = next((bot for bot in pool if bot.id == YARDSTICK), None)
     games = []
 
-    def add(spec: dict, seats: list[Bot], group: str) -> None:
+    def add(spec: dict, seats: list[Bot], group: str, swapped: bool = False) -> None:
         if game_id(spec) not in done:
-            seed, swapped = spec_draw(secret, spec)
             games.append(
                 {
                     "id": game_id(spec),
                     "spec": spec,
-                    "seed": seed,
+                    "seed": spec_seed(secret, spec),
                     "swapped": swapped,
                     "bots": [str(bot.path) for bot in seats],
                     "group": group,
@@ -67,8 +68,10 @@ def missing(season: Season, pool: list[Bot], done: set[str], secret: bytes) -> l
             )
 
     for a, b in itertools.combinations(pool, 2):
-        for maze in range(season.mazes_per_pairing):
-            add(duo_spec(season, a, b, maze), [a, b], f"{a.key} {b.key}")
+        specs = [duo_spec(season, a, b, maze) for maze in range(season.mazes_per_pairing)]
+        swapped = swapped_mazes(secret, specs)
+        for spec in specs:
+            add(spec, [a, b], f"{a.key} {b.key}", spec["maze"] in swapped)
     for bot in pool:
         for maze in range(season.solo_mazes):
             add(solo_spec(season, bot, bot, maze), [bot], bot.key)

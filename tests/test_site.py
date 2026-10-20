@@ -73,7 +73,7 @@ class SiteTests(Built):
             self.build(out)
             index = (out / "index.html").read_text()
             self.assertIn("11×11 mazes with 10 points and\n80% loops; 2 s to start, 100 ms per move.", index)
-            self.assertIn("Each pair of bots plays 2 games, each on a fresh maze, the corners drawn at random.", index)
+            self.assertIn("Each pair of bots plays 2 games, each on a fresh maze, half of them from each corner.", index)
             self.assertIn("Each bot clears 2 mazes alone", index)
 
     def test_bot_text_stays_text(self):

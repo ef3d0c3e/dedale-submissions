@@ -77,9 +77,9 @@ python3 -m tools.validate --author ada              # the pull request's check
 
 ## Games
 
-Each pair of bots plays 20 games, each on its own maze, with the starting
-corners drawn at random for each game. Each bot also clears 20 mazes
-alone. The maze size, number of points, share of
+Each pair of bots plays 20 games, each on its own maze: each bot starts 10
+of them top-left and 10 bottom-right, which ones drawn at random. Each bot
+also clears 20 mazes alone. The maze size, number of points, share of
 loops and timings are the season's ([`season.json`](season.json)):
 Dedale's defaults, 31×31 with 40 points and 80% loops, 5 s to start and
 100 ms per move.

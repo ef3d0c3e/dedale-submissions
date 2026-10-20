@@ -23,7 +23,9 @@ class ScheduleTests(unittest.TestCase):
         solo = [g for g in games if g["spec"]["kind"] == "solo"]
         # 3 pairings, 2 mazes, one game each.
         self.assertEqual(len(duo), 3 * 2)
-        self.assertTrue(all(isinstance(g["swapped"], bool) for g in games))
+        for group in {g["group"] for g in duo}:
+            corners = [g["swapped"] for g in duo if g["group"] == group]
+            self.assertEqual(sorted(corners), [False, True], "one game from each corner")
         # Each bot's own maze, and the yardstick on the two others'.
         self.assertEqual(len(solo), 3 + 2)
         self.assertEqual(len({g["id"] for g in games}), len(games))

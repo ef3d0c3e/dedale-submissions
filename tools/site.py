@@ -246,7 +246,7 @@ def index(standings: dict) -> str:
 {settings['loops']}% loops; {settings['startup_ms'] / 1000:g} s to start, {settings['move_ms']} ms per move.</p>
 
 <h2>Head to head</h2>
-<p class="muted">Each pair of bots plays {count(mazes, "game")}, each on a fresh maze, the corners drawn at random.
+<p class="muted">Each pair of bots plays {count(mazes, "game")}, each on a fresh maze, half of them from each corner.
 <strong>Points</strong>: a bot's share of the points against each opponent, averaged over its
 opponents, in percent (50 is even). <strong>Win rate</strong>: its games won, draws counting half.
 <strong>Schulze</strong>: its rank by the Schulze method, where a bot ranks above another when it

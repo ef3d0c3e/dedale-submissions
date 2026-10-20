@@ -171,7 +171,7 @@ def maze_seed(secret: bytes | None, *parts: str) -> str:
 
 def duo_spec(season: Season, a: Bot, b: Bot, maze: int) -> dict:
     """A duo game: `a` and `b` by id, on their pairing's maze `maze`. Who
-    starts where is drawn with the maze (`spec_draw`)."""
+    starts where is drawn for the whole pairing (`swapped_mazes`)."""
     first, second = sorted((a, b), key=lambda bot: bot.id)
     return {
         "season": season.name,
@@ -192,13 +192,26 @@ def solo_spec(season: Season, bot: Bot, mazes_of: Bot, maze: int) -> dict:
     }
 
 
-def spec_draw(secret: bytes | None, spec: dict) -> tuple[str, bool]:
-    """A game's maze seed, and whether its first bot starts bottom-right: a
-    coin flip for each duo game. The yardstick plays a bot's own solo mazes."""
+def spec_parts(spec: dict) -> list[str]:
+    """What a game's draw is keyed on. The yardstick plays a bot's own solo
+    mazes."""
     if spec["kind"] == "duo":
-        drawn = draw(secret, spec["season"], "duo", *spec["bots"], str(spec["maze"]))
-        return drawn[:8].hex(), bool(drawn[8] & 1)
-    return maze_seed(secret, spec["season"], "solo", spec["mazes_of"], str(spec["maze"])), False
+        return [spec["season"], "duo", *spec["bots"], str(spec["maze"])]
+    return [spec["season"], "solo", spec["mazes_of"], str(spec["maze"])]
+
+
+def spec_seed(secret: bytes | None, spec: dict) -> str:
+    """The seed of a game's maze: the first 8 bytes of its draw."""
+    return draw(secret, *spec_parts(spec))[:8].hex()
+
+
+def swapped_mazes(secret: bytes | None, specs: list[dict]) -> set[int]:
+    """The mazes of a pairing (its duo games) where its first bot starts
+    bottom-right: half of them, rounded down, so each bot starts as often
+    from each corner. Which half: the mazes ordered by the next 8 bytes of
+    their draws."""
+    ranked = sorted(specs, key=lambda spec: (draw(secret, *spec_parts(spec))[8:16], spec["maze"]))
+    return {spec["maze"] for spec in ranked[: len(specs) // 2]}
 
 
 def game_id(spec: dict) -> str:
