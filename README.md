@@ -12,15 +12,18 @@ the bots already there, and the ranking is published at
 - [Ranking](#ranking)
 - [Baselines](#baselines)
 - [Reproducing a game](#reproducing-a-game)
+- [Licence](#licence)
 - [For maintainers](#for-maintainers)
 
 ## How it works
 
 1. You add your bot under `bots/<your GitHub login>/<bot>/` in a fork and
-   open a pull request.
+   open a pull request, ticking the box that licenses it under the MIT
+   License ([Licence](#licence)).
 2. A check reads what your bot says about itself, makes sure the pull
-   request only touches your own folder, and plays a few games with it in
-   Dedale's sandbox. Its report is in the check's summary.
+   request only touches your own folder and the box is ticked, and plays a
+   few games with it in Dedale's sandbox. Its report is in the check's
+   summary.
 3. Once a maintainer merges it, your bot plays each bot already in the
    pool, and its mazes alone; then the site is updated with the new
    ranking. Only the new bot's games are played: the results of the others
@@ -179,6 +182,19 @@ with the Dedale version the game was played with, and for bots that import
 a library, the season's Python (`--python`, see [Libraries](#libraries)).
 Bots that depend on timing may play slightly differently.
 
+## Licence
+
+Everything here is under the [MIT License](LICENSE), and so are the bots:
+**by opening a pull request that adds or changes a bot, you license it
+under the MIT License** and confirm that you wrote it, or have the right
+to license it so. You keep the copyright of your bot: the licence lets
+anyone use, copy, change and share it, keeping your copyright notice and
+the licence with it, as you may do with the others' bots.
+
+The pull request template has a box saying so; the check refuses a pull
+request that adds or changes a bot until it is ticked (editing the
+description runs the check again).
+
 ## For maintainers
 
 - **Tools** (`tools/`, standard library only, Python 3.10 or later, run as
@@ -207,5 +223,3 @@ Bots that depend on timing may play slightly differently.
   edit `season.json` and `libraries.txt` (`bot_python pin`); every game is
   played again under the new season's name. The runner's `python3` must
   be the season's Python: `bot_python build` stops otherwise.
-
-Licence: MIT.

@@ -1,13 +1,16 @@
 # Checks a pull request: the tools' tests on the oldest Python they support,
-# then the submission check (who may change what, what the bots say about
-# themselves, a smoke game each in Dedale's sandbox, with the season's
-# libraries). Read-only token, no secrets. The submission check runs the base
+# then the submission check (who may change what, the licence box, what the
+# bots say about themselves, a smoke game each in Dedale's sandbox, with the
+# season's libraries). Read-only token, no secrets. The submission check runs the base
 # branch's tools and libraries, which a pull request cannot change, on the
 # pull request's files. Third-party actions are pinned by commit.
 name: Pull request
 
 on:
   pull_request:
+    # `edited` too: ticking the licence box in the description runs the
+    # check again.
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -89,6 +92,8 @@ jobs:
         env:
           AUTHOR: ${{ github.event.pull_request.user.login }}
           BASE: ${{ github.event.pull_request.base.sha }}
+          # The author's text: through the environment, never into the script.
+          BODY: ${{ github.event.pull_request.body }}
         run: |
           python3 -m tools.validate --author "$AUTHOR" --base "$BASE" \
-              --root ../submitted --dedale "$DEDALE" --sandbox
+              --root ../submitted --dedale "$DEDALE" --sandbox --body "$BODY"

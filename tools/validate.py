@@ -1,11 +1,12 @@
 """Decides whether a pull request's bots may join: run by the pull request
 check, and by submitters before opening one.
 
-    python3 -m tools.validate --author LOGIN [--base REF] [--dedale PATH] [--sandbox] [--root DIR]
+    python3 -m tools.validate --author LOGIN [--base REF] [--dedale PATH] [--sandbox] [--root DIR] [--body TEXT]
 
 `--root` checks another checkout: the pull request check runs the base
 branch's tools, which a pull request cannot change, on the pull request's
-files. Prints a Markdown report (also written to `GITHUB_STEP_SUMMARY` when set) and
+files. `--body` is the pull request's description, where whoever adds or
+changes a bot ticks the licence box. Prints a Markdown report (also written to `GITHUB_STEP_SUMMARY` when set) and
 exits with 1 when anything is wrong, listing every reason.
 """
 
@@ -14,6 +15,7 @@ from __future__ import annotations
 import argparse
 import ast
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,6 +41,9 @@ from tools.common import (
 # Smoke games stop here: enough to see a bot start and play.
 SMOKE_TURNS = 200
 MAX_VERSION = 2**32 - 1
+# The box the pull request template has submitters tick.
+LICENCE = "I license this submission under the MIT License"
+TICKED = re.compile(rf"^\s*[-*]\s*\[[xX]\]\s*{re.escape(LICENCE)}", re.MULTILINE)
 
 
 @dataclass
@@ -180,7 +185,10 @@ def check(
     dedale: str | None,
     sandbox: bool = False,
     games: bool = True,
+    body: str | None = None,
 ) -> Report:
+    """`body`: the pull request's description, checked for the licence box
+    (not checked without one, as when run locally)."""
     report = Report()
     maintainer = author.lower() in maintainers(root, base)
     paths = changed_paths(root, base)
@@ -199,6 +207,8 @@ def check(
                 touched.add(f"{parts[1]}/{parts[2]}")
 
     present = sorted(b for b in touched if (root / "bots" / b).is_dir())
+    if present and body is not None and not TICKED.search(body):
+        report.fail(f"the licence is not accepted: tick “{LICENCE}” in the pull request's description")
     for bot_id in sorted(touched - set(present)):
         report.ok(bot_id, "removed")
     for bot_id in present:
@@ -269,9 +279,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sandbox", action="store_true", help="play in Dedale's sandbox")
     parser.add_argument("--no-games", action="store_true", help="skip the smoke games")
     parser.add_argument("--root", type=Path, default=ROOT, help="the checkout to check")
+    parser.add_argument("--body", help="the pull request's description, for the licence box")
     args = parser.parse_args(argv)
     root = args.root.resolve()
-    report = check(root, args.base, args.author, args.dedale, args.sandbox, not args.no_games)
+    report = check(root, args.base, args.author, args.dedale, args.sandbox, not args.no_games, args.body)
     text = report.markdown()
     print(text)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):

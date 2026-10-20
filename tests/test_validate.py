@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 from tests.helpers import dedale, write_bot
-from tools.common import MAX_BOT_BYTES
-from tools.validate import check, literal_version, main
+from tools.common import MAX_BOT_BYTES, ROOT
+from tools.validate import LICENCE, check, literal_version, main
 
 SEASON = {
     "season": "test",
@@ -47,9 +47,9 @@ class Repo:
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "--allow-empty", "-m", message)
 
-    def check(self, author: str, games: bool = False, tool: str | None = None):
+    def check(self, author: str, games: bool = False, tool: str | None = None, body: str | None = None):
         self.commit("pull request")
-        return check(self.root, "base", author, tool, games=games)
+        return check(self.root, "base", author, tool, games=games, body=body)
 
     def __enter__(self):
         return self
@@ -124,6 +124,48 @@ class PathTests(unittest.TestCase):
             report = repo.check("ada")
             self.assertEqual(report.errors, [])
             self.assertIn("No bot changed.", report.markdown())
+
+
+def licence_errors(report) -> list[str]:
+    return [e for e in report.errors if "licence" in e]
+
+
+class LicenceTests(unittest.TestCase):
+    def test_a_new_bot_needs_the_box_ticked(self):
+        refused = ["", "Here is my bot.", f"- [ ] {LICENCE} (see `LICENSE`)", f"{LICENCE}"]
+        accepted = [f"Hi!\n\n- [x] {LICENCE} (see `LICENSE`), and I wrote it.", f"* [X] {LICENCE}"]
+        for body in refused + accepted:
+            with self.subTest(body=body), Repo() as repo:
+                write_bot(repo.root, "bob/runner", name="Runner")
+                errors = licence_errors(repo.check("bob", body=body))
+                if body in refused:
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn(f"tick “{LICENCE}” in the pull request's description", errors[0])
+                else:
+                    self.assertEqual(errors, [])
+
+    def test_a_new_version_too(self):
+        with Repo() as repo:
+            write_bot(repo.root, "ada/wall", name="Wall", version=2)
+            self.assertEqual(len(licence_errors(repo.check("ada", body=""))), 1)
+
+    def test_not_to_remove_a_bot_nor_when_run_locally(self):
+        with Repo() as repo:
+            git(repo.root, "rm", "-q", "-r", "bots/ada/wall")
+            self.assertEqual(repo.check("ada", body="").errors, [])
+        with Repo() as repo:
+            write_bot(repo.root, "bob/runner", name="Runner")
+            self.assertEqual(licence_errors(repo.check("bob")), [])
+
+    def test_the_template_and_the_workflow(self):
+        template = (ROOT / ".github" / "pull_request_template.md").read_text()
+        self.assertIn(f"- [ ] {LICENCE}", template)
+        workflow = (ROOT / ".github" / "workflows" / "pull-request.yml").read_text()
+        self.assertIn("types: [opened, synchronize, reopened, edited]", workflow)
+        self.assertIn("BODY: ${{ github.event.pull_request.body }}", workflow)
+        self.assertIn('--body "$BODY"', workflow)
+        # Only in the environment: never expanded into a script.
+        self.assertEqual(workflow.count("github.event.pull_request.body"), 1)
 
 
 class VersionTests(unittest.TestCase):
