@@ -3,9 +3,9 @@
   "dedale": "0.1.0",
   "size": "31x31",
   "loops": 80,
-  "points": 50,
-  "mazes_per_pairing": 4,
-  "solo_mazes": 4,
-  "startup_ms": 2000,
+  "points": 40,
+  "mazes_per_pairing": 10,
+  "solo_mazes": 20,
+  "startup_ms": 5000,
   "move_ms": 100
 }

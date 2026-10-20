@@ -77,10 +77,11 @@ python3 -m tools.validate --author ada              # the pull request's check
 
 ## Games
 
-Each pair of bots plays 4 mazes from both corners: 8 games. Each bot also
-clears 4 mazes alone. The maze size, number of points, share of loops and
-timings are the season's ([`season.json`](season.json)): Dedale's defaults,
-31×31 with 50 points and 80% loops, 2 s to start and 100 ms per move.
+Each pair of bots plays 10 mazes from both corners: 20 games. Each bot
+also clears 20 mazes alone. The maze size, number of points, share of
+loops and timings are the season's ([`season.json`](season.json)):
+Dedale's defaults, 31×31 with 40 points and 80% loops, 5 s to start and
+100 ms per move.
 
 Tournaments only play what is missing. After a merge, a new bot, or a new
 version of one, plays its games against every bot in the pool; games
@@ -99,7 +100,7 @@ result. Replays and logs are not kept.
 ## Ranking
 
 **Head to head.** A pairing's score is a bot's share of all the points
-collected over its 8 games: 0.5 is even. The ranking uses the **Schulze
+collected over its 20 games: 0.5 is even. The ranking uses the **Schulze
 method** on those shares: a bot ranks above another when it beats it,
 directly or through a chain of bots each beating the next, by a wider
 margin than the other manages back. A bot that beats every other is first;
@@ -126,7 +127,7 @@ Each game on the site shows the command that plays it again, for instance:
 ```sh
 git checkout <commit>
 dedale run bots/ada/racer/main.py bots/_baseline/greedy/main.py \
-    --maze ded2-31x31-l80-p50-1a2b3c4d5e6f7a8b --swap --startup-ms 2000 --move-ms 100
+    --maze ded2-31x31-l80-p40-1a2b3c4d5e6f7a8b --swap --startup-ms 5000 --move-ms 100
 ```
 
 with the Dedale version the game was played with. Bots that depend on

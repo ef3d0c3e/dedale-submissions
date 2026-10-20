@@ -74,6 +74,11 @@ def bot_link(bot: dict, depth: int = 0) -> str:
     return f'<a href="{"../" * depth}bots/{escape(bot["id"])}.html">{escape(label(bot))}</a>{tag}'
 
 
+def count(n: int, noun: str) -> str:
+    """`1 maze`, `10 mazes`."""
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
 def percent(share: float | None) -> str:
     return "–" if share is None else f"{share * 100:.1f}%"
 
@@ -141,14 +146,19 @@ def index(standings: dict) -> str:
             f'<td class="num">{ratio}</td><td class="num">{row["cleared"]}/{row["mazes"]}</td></tr>'
         )
     commit = standings["commit"]
+    settings = standings["settings"]
+    mazes, solo_mazes = settings["mazes_per_pairing"], settings["solo_mazes"]
+    width, height = settings["size"].split("x")
     body = f"""<h1>Dedale competition</h1>
 <p class="muted">Season {escape(standings['season'])}, <a href="{DEDALE}">Dedale</a>
 {escape(standings['dedale'])}. Updated {escape(standings['generated'])} at
 <a href="{REPOSITORY}/commit/{escape(commit)}">{escape(commit[:12])}</a>.
 <a href="{REPOSITORY}">Submit a bot</a>.</p>
+<p class="muted">{width}×{height} mazes with {settings['points']} points and
+{settings['loops']}% loops; {settings['startup_ms'] / 1000:g} s to start, {settings['move_ms']} ms per move.</p>
 
 <h2>Head to head</h2>
-<p class="muted">Each pair of bots plays 8 games, 4 fresh mazes from both corners. A
+<p class="muted">Each pair of bots plays {2 * mazes} games, {count(mazes, "fresh maze")} from both corners. A
 pairing's score is a bot's share of the points; bots are ranked with the Schulze method:
 one ranks above another when it beats it, directly or through a chain of bots each beating
 the next, by a wider margin than the other manages back.</p>
@@ -165,7 +175,7 @@ the next, by a wider margin than the other manages back.</p>
 </table></div>
 
 <h2>Solo</h2>
-<p class="muted">Each bot clears 4 mazes alone: its turns divided by the greedy baseline's
+<p class="muted">Each bot clears {count(solo_mazes, "maze")} alone: its turns divided by the greedy baseline's
 on the same mazes (lower is better; a maze not cleared counts the turn limit).</p>
 <div class="scroll"><table>
 <tr><th>#</th><th>Bot</th><th>Turns, relative to greedy</th><th>Cleared</th></tr>

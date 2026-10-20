@@ -44,6 +44,15 @@ class SiteTests(unittest.TestCase):
             self.assertIn("3.5 to 1.5", page)
             self.assertIn("../../style.css", page)
 
+    def test_the_season_settings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "site"
+            self.build(out)
+            index = (out / "index.html").read_text()
+            self.assertIn("11×11 mazes with 10 points and\n80% loops; 2 s to start, 100 ms per move.", index)
+            self.assertIn("Each pair of bots plays 2 games, 1 fresh maze from both corners.", index)
+            self.assertIn("Each bot clears 2 mazes alone", index)
+
     def test_bot_text_stays_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "site"
