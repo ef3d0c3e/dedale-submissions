@@ -2,7 +2,7 @@
 
 Bots for [Dedale](https://github.com/ef3d0c3e/dedale), the maze referee,
 compete here. Submit a bot with a pull request; once it is merged it plays
-every other bot, and the ranking is published at
+the bots already there, and the ranking is published at
 <https://ef3d0c3e.github.io/dedale-submissions/>.
 
 - [How it works](#how-it-works)
@@ -20,8 +20,10 @@ every other bot, and the ranking is published at
 2. A check reads what your bot says about itself, makes sure the pull
    request only touches your own folder, and plays a few games with it in
    Dedale's sandbox. Its report is in the check's summary.
-3. Once a maintainer merges it, your bot plays every other bot, alone too,
-   and the site is updated with the new ranking.
+3. Once a maintainer merges it, your bot plays each bot already in the
+   pool, and its mazes alone; then the site is updated with the new
+   ranking. Only the new bot's games are played: the results of the others
+   against each other are kept.
 
 ## Submitting a bot
 
@@ -79,6 +81,10 @@ Each pair of bots plays 4 mazes from both corners: 8 games. Each bot also
 clears 4 mazes alone. The maze size, number of points, share of loops and
 timings are the season's ([`season.json`](season.json)): Dedale's defaults,
 31×31 with 50 points and 80% loops, 2 s to start and 100 ms per move.
+
+Tournaments only play what is missing. After a merge, a new bot, or a new
+version of one, plays its games against every bot in the pool; games
+already played are never played again.
 
 Mazes are **fresh for each pairing**: their seeds come from a secret and the
 two bots' versions, so nobody can know or tune for them before they are

@@ -11,6 +11,11 @@ SEASON = Season("test", "0.1.0", 11, 11, 80, 10, 2, 1, 2000, 100)
 POOL = [bot("_baseline/greedy"), bot("ada/wall"), bot("bob/runner", 2)]
 
 
+def involved(game: dict) -> set[str]:
+    """Who a game is for: its players, and whose solo maze it is."""
+    return {*game["spec"]["bots"], game["spec"].get("mazes_of")}
+
+
 class ScheduleTests(unittest.TestCase):
     def test_every_game_once(self):
         games = missing(SEASON, POOL, set(), b"secret")
@@ -36,15 +41,21 @@ class ScheduleTests(unittest.TestCase):
         done = {game["id"] for game in games[:5]}
         self.assertEqual(missing(SEASON, POOL, done, b"secret"), games[5:])
 
-    def test_a_new_version_plays_again(self):
-        games = missing(SEASON, POOL, set(), b"secret")
-        newer = [POOL[0], POOL[1], bot("bob/runner", 3)]
-        todo = missing(SEASON, newer, {g["id"] for g in games}, b"secret")
-        involved = {key for game in todo for key in game["spec"]["bots"]} | {
-            game["spec"].get("mazes_of") for game in todo
-        }
-        self.assertIn("bob/runner@3", involved)
+    def test_a_new_bot_plays_only_its_own_games(self):
+        done = {g["id"] for g in missing(SEASON, POOL, set(), b"secret")}
+        todo = missing(SEASON, [*POOL, bot("cleo/new")], done, b"secret")
+        self.assertTrue(all("cleo/new@1" in involved(game) for game in todo))
+        # Against each of the 3 bots, 2 mazes from both corners; its solo
+        # maze, alone and by the yardstick.
+        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "duo"]), 3 * 2 * 2)
+        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "solo"]), 2)
+
+    def test_a_new_version_plays_only_its_own_games(self):
+        done = {g["id"] for g in missing(SEASON, POOL, set(), b"secret")}
+        todo = missing(SEASON, [POOL[0], POOL[1], bot("bob/runner", 3)], done, b"secret")
+        self.assertTrue(all("bob/runner@3" in involved(game) for game in todo))
         self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "duo"]), 2 * 2 * 2)
+        self.assertEqual(len([g for g in todo if g["spec"]["kind"] == "solo"]), 2)
 
     def test_shards_keep_groups_whole(self):
         games = missing(SEASON, POOL, set(), b"secret")
