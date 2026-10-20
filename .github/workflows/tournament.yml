@@ -36,7 +36,10 @@ jobs:
           persist-credentials: false
 
       - name: Dedale
-        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+        # Assigned first: under `bash -e` a failed download stops the step.
+        run: |
+          dedale=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")
+          echo "DEDALE=$dedale" >> "$GITHUB_ENV"
 
       - name: Sandbox
         run: |
@@ -92,7 +95,10 @@ jobs:
           persist-credentials: false
 
       - name: Dedale
-        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+        # Assigned first: under `bash -e` a failed download stops the step.
+        run: |
+          dedale=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")
+          echo "DEDALE=$dedale" >> "$GITHUB_ENV"
 
       - name: Sandbox
         run: |

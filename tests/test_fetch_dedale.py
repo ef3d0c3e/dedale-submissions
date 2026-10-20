@@ -3,9 +3,11 @@ import io
 import tarfile
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
-from tools.fetch_dedale import RELEASES, expected_sum, fetch
+from tools.fetch_dedale import RELEASES, download, expected_sum, fetch
 
 
 def archive(files: dict[str, bytes]) -> bytes:
@@ -55,3 +57,9 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(expected_sum("AB  x.tar.gz\ncd *y.tar.gz\n", "y.tar.gz"), "cd")
         with self.assertRaisesRegex(ValueError, "lists no"):
             expected_sum("ab  x.tar.gz\n", "z.tar.gz")
+
+    def test_an_unpublished_release_says_so(self):
+        missing = urllib.error.HTTPError(f"{RELEASES}/v9.9.9/SHA256SUMS", 404, "Not Found", {}, None)
+        with mock.patch("urllib.request.urlopen", side_effect=missing):
+            with self.assertRaisesRegex(ValueError, "is the release published"):
+                download(f"{RELEASES}/v9.9.9/SHA256SUMS")

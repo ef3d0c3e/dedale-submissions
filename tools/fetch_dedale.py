@@ -12,6 +12,7 @@ import io
 import os
 import sys
 import tarfile
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -22,8 +23,13 @@ TARGET = "x86_64-unknown-linux-musl"
 
 
 def download(url: str) -> bytes:
-    with urllib.request.urlopen(url, timeout=60) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return response.read()
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            raise ValueError(f"{url} not found: is the release published? (drafts cannot be downloaded)") from error
+        raise
 
 
 def expected_sum(sums: str, name: str) -> str:

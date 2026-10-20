@@ -31,7 +31,10 @@ jobs:
           python-version: "3.10"
 
       - name: Dedale
-        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+        # Assigned first: under `bash -e` a failed download stops the step.
+        run: |
+          dedale=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")
+          echo "DEDALE=$dedale" >> "$GITHUB_ENV"
 
       - name: Checks
         run: scripts/check.sh
@@ -57,7 +60,10 @@ jobs:
 
       - name: Dedale
         working-directory: trusted
-        run: echo "DEDALE=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")" >> "$GITHUB_ENV"
+        # Assigned first: under `bash -e` a failed download stops the step.
+        run: |
+          dedale=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")
+          echo "DEDALE=$dedale" >> "$GITHUB_ENV"
 
       - name: Sandbox
         run: |
