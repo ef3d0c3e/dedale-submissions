@@ -2,7 +2,7 @@
 Title: "Add <login>/<bot>" for a new bot, "Update <login>/<bot> to version <N>"
 for a new version, "Remove <login>/<bot>" to withdraw one.
 Branch: <login>/<bot>. One bot per pull request.
-The steps: README, "Submitting a bot".
+What to include, and the steps: CONTRIBUTING.md.
 -->
 
 ## Bot
@@ -21,6 +21,10 @@ The steps: README, "Submitting a bot".
 ## Libraries
 
 <!-- Which of numpy, scipy and networkx it imports, or "none". -->
+
+## Other files
+
+<!-- What the folder holds besides main.py: modules, data and how it was made, a README, notes, tools such as a tuner (what they need, how to run them). Or "none". -->
 
 ## Licence
 

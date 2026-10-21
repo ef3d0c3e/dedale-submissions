@@ -18,8 +18,8 @@ the bots already there, and the ranking is published at
 ## How it works
 
 1. You add your bot under `bots/<your GitHub login>/<bot>/` in a fork and
-   open a pull request, ticking the box that licenses it under the MIT
-   License ([Licence](#licence)).
+   open a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)), ticking the
+   box that licenses it under the MIT License ([Licence](#licence)).
 2. A check reads what your bot says about itself, makes sure the pull
    request only touches your own folder and the box is ticked, and plays a
    few games with it in Dedale's sandbox. Its report is in the check's
@@ -37,7 +37,9 @@ goes from an empty file to a competitive bot.
 **Layout.** A bot is a folder: `bots/<login>/<bot>/main.py`, where `<login>`
 is your GitHub login and `<bot>` a name of your choice (lower-case letters,
 digits, `-` and `_`, up to 40 characters). Next to `main.py` you may add
-helper modules and data files; load them relative to the bot's file:
+helper modules and data files, and notes or tools about the bot
+([CONTRIBUTING.md](CONTRIBUTING.md#what-goes-in-the-bots-folder)); load
+files relative to the bot's file:
 
 ```python
 from pathlib import Path
@@ -59,7 +61,8 @@ VERSION = 1             # raise it whenever the bot changes
 ```
 
 **Updating.** Change your files in place and raise `VERSION`: the check
-refuses changed files with the same version. A new version plays all its
+refuses a change to any file of the folder, notes included, at the same
+version. A new version plays all its
 games again; the old version's games stay in the history.
 
 **Rules.** Bots are Python 3.12, with the standard library and the
@@ -86,31 +89,9 @@ If your bot imports a library, run it with the season's Python (see
 `dedale run`, or set `DEDALE_PYTHON=.bot-python/bin/python`, which
 `tools.validate` passes on to Dedale too.
 
-### Step by step
-
-One pull request per bot, from a branch of your fork. With `ada` as your
-login and `racer` as the bot:
-
-1. **Fork** this repository on GitHub and clone your fork.
-2. **Branch** from `master`, named after the bot: `git switch -c ada/racer`
-   (for a later version, `ada/racer-v2`).
-3. **Add** the bot's folder, `bots/ada/racer/`, with `main.py` and anything
-   it loads, and nothing outside it: the check refuses changes elsewhere.
-4. **Check** it with the commands above.
-5. **Commit** with a title saying what happens to the pool:
-   `Add ada/racer`, `Update ada/racer to version 2`, or
-   `Remove ada/racer`.
-6. **Push** and open a pull request against `master`, with the same title.
-   Fill in the template: what the bot does, what changed (for an update),
-   the libraries it imports, and **tick the licence box**
-   ([Licence](#licence)).
-7. **The check** runs: its report is in the pull request's Checks tab,
-   under *Pull request / Submission*, in the summary. On a first pull
-   request, a maintainer has to approve the run first. To fix something,
-   push to the same branch, or edit the description: the check runs again.
-8. **A maintainer merges** it. The tournament then plays your bot's games,
-   and it shows up on the [site](https://ef3d0c3e.github.io/dedale-submissions/),
-   marked provisional until all its games are played.
+**Opening the pull request**: [CONTRIBUTING.md](CONTRIBUTING.md) goes
+through it step by step, and says what else the bot's folder may hold: a
+README, research notes, the tools you built for it.
 
 ## Libraries
 
