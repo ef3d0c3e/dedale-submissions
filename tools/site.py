@@ -20,6 +20,8 @@ from tools.common import read_games
 
 REPOSITORY = "https://github.com/ef3d0c3e/dedale-submissions"
 DEDALE = "https://github.com/ef3d0c3e/dedale"
+GITHUB = "https://github.com"
+SCHULZE = "https://en.wikipedia.org/wiki/Schulze_method"
 
 STYLE = """\
 :root { color-scheme: light dark; --bg: #f7f7f5; --fg: #1d1d22; --muted: #6b6b76;
@@ -143,6 +145,15 @@ def bot_link(bot: dict, depth: int = 0) -> str:
     return f'<a href="{"../" * depth}bots/{escape(bot["id"])}.html">{escape(label(bot))}</a>{tag}'
 
 
+def author(bot: dict) -> str:
+    """Who wrote a bot, linked to the GitHub profile of the login its folder
+    is under; baselines are under no login."""
+    if bot.get("baseline"):
+        return escape(bot.get("author") or "–")
+    login = bot["id"].split("/")[0]
+    return f'<a href="{GITHUB}/{escape(login)}">{escape(bot.get("author") or login)}</a>'
+
+
 def count(n: int, noun: str) -> str:
     """`1 maze`, `10 mazes`."""
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
@@ -203,7 +214,7 @@ def index(standings: dict) -> str:
         points = "–" if row["share"] is None else f"{row['share'] * 100:.1f}"
         duo_rows.append(
             f'<tr {attributes}><td class="num">{row["rank"]}</td><td>{bot_link(bot)}{note}</td>'
-            f"<td>{escape(bot.get('author') or '–')}</td><td class=\"num\">{points}</td>"
+            f'<td>{author(bot)}</td><td class="num">{points}</td>'
             f'<td class="num">{percent(row["win_rate"])} '
             f'<span class="muted">{games["won"]}–{games["drawn"]}–{games["lost"]}</span></td>'
             f'<td class="num">{pairs["won"]}–{pairs["drawn"]}–{pairs["lost"]}</td>'
@@ -258,9 +269,9 @@ Bots run on Python {escape(settings['python'])} with
 <p class="muted">Each pair of bots plays {count(mazes, "game")}, each on a fresh maze, half of them from each corner.
 <strong>Points</strong>: a bot's share of the points against each opponent, averaged over its
 opponents, in percent (50 is even). <strong>Win rate</strong>: its games won, draws counting half.
-<strong>Schulze</strong>: its rank by the Schulze method, where a bot ranks above another when it
-beats it, directly or through a chain of bots each beating the next, by a wider margin than
-the other manages back. Click a column to sort by it.</p>
+<strong>Schulze</strong>: its rank by the <a href="{SCHULZE}">Schulze method</a>, where a bot ranks
+above another when it beats it, directly or through a chain of bots each beating the next, by a
+wider margin than the other manages back. Click a column to sort by it.</p>
 <div class="scroll"><table data-board="duo">
 <thead><tr><th>#</th><th>Bot</th><th>Author</th>
 <th data-key="points" data-best="high" aria-sort="descending">Points</th>
@@ -338,7 +349,7 @@ def bot_page(bot: dict, standings: dict, games: dict[str, dict]) -> str:
     baseline = f"· {BASELINE_TAG}" if bot.get("baseline") else ""
     body = f"""<p><a href="../../index.html">← Standings</a></p>
 <h1>{escape(label(bot))}</h1>
-<p>by {escape(bot.get('author') or '–')} · <code>{escape(bot['id'])}</code>
+<p>by {author(bot)} · <code>{escape(bot['id'])}</code>
 {baseline} ·
 <a href="{REPOSITORY}/tree/master/bots/{escape(bot['id'])}">source</a></p>
 <p class="description">{description}</p>

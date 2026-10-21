@@ -21,7 +21,7 @@ class Built(unittest.TestCase):
 
     def setUp(self):
         hostile = dict(info("eve/sly"), name=HOSTILE, description=HOSTILE, author="<b>eve</b>")
-        self.bots = [info("_baseline/greedy"), info("a/x"), hostile]
+        self.bots = [info("_baseline/greedy"), dict(info("a/x"), author="Ada"), hostile]
         self.games = (
             pairing("a/x", "_baseline/greedy", 7, 3)
             + pairing("a/x", "eve/sly", 6, 4)
@@ -57,6 +57,21 @@ class SiteTests(Built):
             self.assertIn("3.5 to 1.5", page)
             self.assertIn("../../style.css", page)
             self.assertNotIn("<script", page)
+
+    def test_links_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "site"
+            self.build(out)
+            index = (out / "index.html").read_text()
+            self.assertIn('<a href="https://en.wikipedia.org/wiki/Schulze_method">Schulze method</a>', index)
+            # Authors link to the profile of the login their bot is under.
+            self.assertIn('<td><a href="https://github.com/a">Ada</a></td>', index)
+            self.assertIn('<td><a href="https://github.com/eve">&lt;b&gt;eve&lt;/b&gt;</a></td>', index)
+            self.assertIn("<td>_baseline</td>", index)
+            page = (out / "bots" / "a" / "x.html").read_text()
+            self.assertIn('<p>by <a href="https://github.com/a">Ada</a> · ', page)
+            baseline = (out / "bots" / "_baseline" / "greedy.html").read_text()
+            self.assertIn("<p>by _baseline · ", baseline)
 
     def test_only_the_sites_own_files(self):
         with tempfile.TemporaryDirectory() as tmp:

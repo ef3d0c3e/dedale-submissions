@@ -174,11 +174,12 @@ to sort by it instead:
 
 - **Win rate**: games won, draws counting half.
 - **Pairings** won, drawn and lost.
-- **Schulze**: the rank by the Schulze method. A bot ranks above another
-  when it beats it, directly or through a chain of bots each beating the
-  next, by a wider margin than the other manages back. A bot that beats
-  every other is first, and unlike points, entering weak or copied bots
-  lifts nobody.
+- **Schulze**: the rank by the
+  [Schulze method](https://en.wikipedia.org/wiki/Schulze_method). A bot
+  ranks above another when it beats it, directly or through a chain of
+  bots each beating the next, by a wider margin than the other manages
+  back. A bot that beats every other is first, and unlike points,
+  entering weak or copied bots lifts nobody.
 - **Games with failures**: late, illegal or missing moves, crashes.
 
 Only each bot's latest version is ranked; a bot with games still to play is
