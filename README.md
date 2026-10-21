@@ -234,11 +234,14 @@ description runs the check again).
   static site). `scripts/check.sh` runs their tests (the end-to-end ones
   need Dedale: `DEDALE` or `dedale` on the PATH).
 - **Workflows**: `pull-request.yml` (read-only token, no secrets: the
-  tools' tests and the submission check) and `tournament.yml` (on each push
-  to `master`: schedule, play in parallel jobs, then merge, rank and deploy;
-  only the schedule job holds the `MAZE_SECRET` secret, only the deploy job
-  can write). The bots run on the bots' Python in the play jobs and the
-  submission check; the schedule job installs no library.
+  tools' tests and actionlint, then the submission check, which skips
+  Dependabot's pull requests: they only update the pinned actions) and
+  `tournament.yml` (on each push to `master`: schedule, play in parallel
+  jobs, then merge, rank and deploy; only the schedule job holds the
+  `MAZE_SECRET` secret, only the deploy job can write). The bots run on
+  the bots' Python in the play jobs and the submission check; the schedule
+  job installs no library. Dependabot proposes updates of the actions
+  weekly.
 - **Settings**: a repository secret `MAZE_SECRET` (any long random string);
   Pages built from GitHub Actions; "Require approval for first-time
   contributors" for workflow runs; `master` protected, merged through pull

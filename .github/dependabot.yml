@@ -1,0 +1,11 @@
+# Weekly updates of the actions the workflows pin by commit, in one pull
+# request. Not pip: libraries.txt changes only with a new season.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

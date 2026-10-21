@@ -39,11 +39,28 @@ jobs:
           dedale=$(python3 -m tools.fetch_dedale --out "$RUNNER_TEMP/dedale")
           echo "DEDALE=$dedale" >> "$GITHUB_ENV"
 
+      - name: actionlint
+        # A pinned release, checked against its hash; scripts/check.sh runs
+        # it (with the runner's shellcheck on the scripts).
+        env:
+          VERSION: "1.7.12"
+          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          file="actionlint_${VERSION}_linux_amd64.tar.gz"
+          curl -fsSLO "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${file}"
+          echo "${SHA256}  ${file}" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$file" -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
       - name: Checks
         run: scripts/check.sh
 
   submission:
     name: Submission
+    # Dependabot's pull requests update the workflows' actions, which only
+    # maintainers may change: they review and merge them, no bot changes.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

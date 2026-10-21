@@ -15,6 +15,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -t . "$@"
 if command -v actionlint >/dev/null; then
     step "workflows"
     actionlint
+elif [[ -n ${CI:-} ]]; then
+    echo "actionlint is not on the PATH: CI must check the workflows" >&2
+    exit 1
 fi
 
 step "all checks passed"

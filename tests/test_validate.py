@@ -167,6 +167,14 @@ class LicenceTests(unittest.TestCase):
         # Only in the environment: never expanded into a script.
         self.assertEqual(workflow.count("github.event.pull_request.body"), 1)
 
+    def test_dependabot_updates_actions_only_and_skips_the_check(self):
+        config = (ROOT / ".github" / "dependabot.yml").read_text()
+        self.assertIn("package-ecosystem: github-actions", config)
+        self.assertNotIn("pip", config.split("\nversion:")[1], "libraries.txt changes with a season")
+        workflow = (ROOT / ".github" / "workflows" / "pull-request.yml").read_text()
+        submission = workflow.split("\n  submission:\n", 1)[1]
+        self.assertIn("if: github.event.pull_request.user.login != 'dependabot[bot]'", submission.split("steps:")[0])
+
 
 class VersionTests(unittest.TestCase):
     def test_literal_version(self):
