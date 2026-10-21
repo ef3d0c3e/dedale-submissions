@@ -71,8 +71,9 @@ startup budget for importing it and running `init()`, then a time limit
 per move ([`season.json`](season.json)); a late move is lost and the bot
 stays.
 
-**Before opening the pull request**, check your bot with
-[Dedale's latest release](https://github.com/ef3d0c3e/dedale/releases):
+**Before opening the pull request**, check your bot with the season's
+Dedale release (the `dedale` version in [`season.json`](season.json);
+`python3 -m tools.fetch_dedale` downloads it to `.dedale/dedale` on Linux):
 
 ```sh
 dedale about bots/ada/racer/main.py                 # what Dedale reads
@@ -84,6 +85,32 @@ If your bot imports a library, run it with the season's Python (see
 [Libraries](#libraries)): add `--python .bot-python/bin/python` to
 `dedale run`, or set `DEDALE_PYTHON=.bot-python/bin/python`, which
 `tools.validate` passes on to Dedale too.
+
+### Step by step
+
+One pull request per bot, from a branch of your fork. With `ada` as your
+login and `racer` as the bot:
+
+1. **Fork** this repository on GitHub and clone your fork.
+2. **Branch** from `master`, named after the bot: `git switch -c ada/racer`
+   (for a later version, `ada/racer-v2`).
+3. **Add** the bot's folder, `bots/ada/racer/`, with `main.py` and anything
+   it loads, and nothing outside it: the check refuses changes elsewhere.
+4. **Check** it with the commands above.
+5. **Commit** with a title saying what happens to the pool:
+   `Add ada/racer`, `Update ada/racer to version 2`, or
+   `Remove ada/racer`.
+6. **Push** and open a pull request against `master`, with the same title.
+   Fill in the template: what the bot does, what changed (for an update),
+   the libraries it imports, and **tick the licence box**
+   ([Licence](#licence)).
+7. **The check** runs: its report is in the pull request's Checks tab,
+   under *Pull request / Submission*, in the summary. On a first pull
+   request, a maintainer has to approve the run first. To fix something,
+   push to the same branch, or edit the description: the check runs again.
+8. **A maintainer merges** it. The tournament then plays your bot's games,
+   and it shows up on the [site](https://ef3d0c3e.github.io/dedale-submissions/),
+   marked provisional until all its games are played.
 
 ## Libraries
 
